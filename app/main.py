@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 from logging import getLogger
 
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter, FastAPI
 
 from app.infra.config import Settings
 
 logger = getLogger(__name__)
+
 
 class AppBuilder:
     def __init__(self, routers: list[APIRouter], settings: Settings):
@@ -17,7 +18,6 @@ class AppBuilder:
         logger.info("Application started")
         yield
         logger.info("Application stopped")
-
 
     def create_app(self) -> FastAPI:
         app = FastAPI(

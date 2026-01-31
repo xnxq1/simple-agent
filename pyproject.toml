@@ -6,12 +6,15 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.3.1",
+    "diagrams>=0.25.1",
     "dishka>=1.7.2",
     "dotenv>=0.9.9",
     "fastapi>=0.128.0",
     "langgraph>=1.0.7",
+    "make>=0.1.6.post2",
     "openai>=2.16.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
+    "ruff>=0.14.14",
     "uvicorn>=0.40.0",
 ]

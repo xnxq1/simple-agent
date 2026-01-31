@@ -1,9 +1,8 @@
-from typing import TypedDict
+import io
 
-from fastapi import APIRouter, FastAPI
-from langgraph.graph import StateGraph
+from fastapi import APIRouter
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import BaseModel
+from starlette.responses import StreamingResponse
 
 from app.logic.nodes.state import StateSchema
 
@@ -18,5 +17,5 @@ class AgentRouter:
         self.router.post("/query")(self.agent_query)
 
     async def agent_query(self, payload: str):
-        res= await self.graph_agent.ainvoke(StateSchema(query=payload))
-        return res['result']
+        res = await self.graph_agent.ainvoke(StateSchema(query=payload))
+        return StreamingResponse(io.BytesIO(res["image"]), media_type="image/png")

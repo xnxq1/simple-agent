@@ -3,8 +3,10 @@ from logging import getLogger
 from typing import Any
 
 from openai import AsyncOpenAI
-from openai.types import ResponseFormatJSONSchema
-from openai.types.chat import ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam
+from openai.types.chat import (
+    ChatCompletionSystemMessageParam,
+    ChatCompletionUserMessageParam,
+)
 
 from app.infra.config import Settings
 
@@ -29,7 +31,7 @@ class LLMClient:
     ) -> Any:
         chat_settings = {}
         if response_format:
-            chat_settings['response_format'] = response_format
+            chat_settings["response_format"] = response_format
         result = await self.client.chat.completions.create(
             model=self.settings.llm_model,
             temperature=0.2,
@@ -37,7 +39,7 @@ class LLMClient:
                 ChatCompletionSystemMessageParam(content=system_prompt, role="system"),
                 ChatCompletionUserMessageParam(content=user_query, role="user"),
             ],
-            **chat_settings
+            **chat_settings,
         )
         total_tokens = result.usage.total_tokens
         input_tokens = result.usage.prompt_tokens
