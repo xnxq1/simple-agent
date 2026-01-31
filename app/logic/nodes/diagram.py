@@ -51,6 +51,7 @@ class RecognizeDiagramNode:
 
 class CreateDiagramNode:
     async def execute(self, state: StateSchema) -> dict:
+        #TODO asyncio.to_thread
         res: Diagram = state.result
         node_map = {node.id: node for node in res.nodes}
         diagram_map = {}
