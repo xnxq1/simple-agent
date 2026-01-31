@@ -9,6 +9,7 @@ class AgentNode:
         self.llm = llm
 
 
-    async def execute(self, state: StateSchema):
-        return await self.llm.completions_create(
+    async def execute(self, state: StateSchema) -> dict:
+        res =  await self.llm.completions_create(
             system_prompt="", user_query=state.query)
+        return {'result': res}

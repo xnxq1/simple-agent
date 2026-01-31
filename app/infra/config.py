@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     app_version: str = Field(default="0.1.0", alias="APP_VERSION")
     open_ai_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="OPENAI_BASE_URL")
     open_ai_api_key: str = Field(alias="OPENAI_API_KEY")
+    llm_model: str = Field(default="gpt-4o-mini", alias="LLM_MODEL")
+
 
 def get_settings() -> Settings:
     return Settings()

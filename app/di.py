@@ -5,6 +5,7 @@ from langgraph.graph.state import CompiledStateGraph
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+from app.application.agent.router import AgentRouter
 from app.infra.config import Settings
 from app.infra.llm.client import LLMClient
 from app.logic.nodes.agent import AgentNode
@@ -19,8 +20,10 @@ class AppProvider(Provider):
         return Settings()
 
     @provide(scope=Scope.APP)
-    def app_builder(self, settings: Settings) -> AppBuilder:
-        return AppBuilder(routers=[], settings=settings)
+    def app_builder(self, settings: Settings, graph: CompiledStateGraph) -> AppBuilder:
+        agent_router = AgentRouter(graph_agent=graph)
+        agent_router.register_routes()
+        return AppBuilder(routers=[agent_router.router], settings=settings)
 
 class LLMProvider(Provider):
     @provide(scope=Scope.APP)
