@@ -3,7 +3,7 @@ from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
-from openai import AsyncOpenAI
+from langchain_openai import ChatOpenAI
 
 from app.application.agent.router import AgentRouter
 from app.infra.config import Settings
@@ -29,17 +29,14 @@ class AppProvider(Provider):
 
 class LLMProvider(Provider):
     @provide(scope=Scope.APP)
-    def create_openai_client(self, settings: Settings) -> AsyncOpenAI:
-        client = AsyncOpenAI(
+    def llm_client(self, settings: Settings) -> LLMClient:
+        model = ChatOpenAI(
+            model=settings.llm_model,
+            temperature=0.2,
             api_key=settings.open_ai_api_key,
             base_url=settings.open_ai_base_url,
         )
-
-        return client
-
-    @provide(scope=Scope.APP)
-    def llm_client(self, client: AsyncOpenAI, settings: Settings) -> LLMClient:
-        return LLMClient(client=client, settings=settings, tools=tools)
+        return LLMClient(model=model, settings=settings, tools=tools)
 
     @provide(scope=Scope.APP)
     def llm_node(self, llm_client: LLMClient) -> LLMNode:
@@ -59,7 +56,7 @@ class LLMProvider(Provider):
         graph.add_node("tools", tool_node)
 
         def should_continue(state: MessagesState) -> str:
-            last_message = state["messages"][-1]
+            last_message = state.messages[-1]
             if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                 return "tools"
             return END

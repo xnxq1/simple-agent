@@ -2,12 +2,8 @@ import json
 from logging import getLogger
 from typing import Any, Callable
 
-from langchain_core.utils.function_calling import convert_to_openai_tool
-from openai import AsyncOpenAI, Omit
-from openai.types.chat import (
-    ChatCompletionSystemMessageParam,
-    ChatCompletionUserMessageParam,
-)
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
 from app.infra.config import Settings
 
@@ -17,55 +13,38 @@ logger = getLogger(__name__)
 class LLMClient:
     def __init__(
         self,
-        client: AsyncOpenAI,
+        model: ChatOpenAI,
         settings: Settings,
         tools: list[Callable] | None = None,
     ):
-        self.client = client
+        self.model = model
         self.settings = settings
+        self.tools = tools
 
-        self._setup_tools(tools)
-
-    def _setup_tools(self, tools: list[Callable] | None = None):
-        if tools is None:
-            self.tools = Omit
-            return
-        converted_tools = []
-        for tool in tools:
-            converted_tools.append(convert_to_openai_tool(tool))
-        self.tools = converted_tools
+        if tools:
+            self.model = self.model.bind_tools(tools)
 
     async def completions_create(
         self,
         system_prompt: str,
-        user_query: str,
+        messages: list[BaseMessage],
         response_format: dict | None = None,
         response_class: type | None = None,
-    ) -> Any:
-        chat_settings = {}
-        if response_format:
-            chat_settings["response_format"] = response_format
-        result = await self.client.chat.completions.create(
-            model=self.settings.llm_model,
-            temperature=0.2,
-            messages=[
-                ChatCompletionSystemMessageParam(content=system_prompt, role="system"),
-                ChatCompletionUserMessageParam(content=user_query, role="user"),
-            ],
-            tools=self.tools,
-            **chat_settings,
-        )
-        total_tokens = result.usage.total_tokens
-        input_tokens = result.usage.prompt_tokens
-        output_tokens = result.usage.completion_tokens
-        logger.info(
-            f"Query to {self.settings.llm_model} "
-            f"input_tokens: {input_tokens}, output_tokens: {output_tokens}, total_tokens: {total_tokens} "
-        )
-        if response_format:
-            res = json.loads(result.choices[0].message.content)
-            if response_class:
-                return response_class(**res)
-            return res
+    ) -> BaseMessage | Any:
+        full_messages = [SystemMessage(content=system_prompt)] + messages
 
-        return result.choices[0].message.content
+        if response_format or response_class:
+            if response_class:
+                model = self.model.with_structured_output(response_class)
+                result = await model.ainvoke(full_messages)
+                logger.info(f"Query to {self.settings.llm_model} with structured output")
+                return result
+            else:
+                result = await self.model.ainvoke(full_messages)
+                logger.info(f"Query to {self.settings.llm_model}")
+                res = json.loads(result.content)
+                return res
+
+        result = await self.model.ainvoke(full_messages)
+        logger.info(f"Query to {self.settings.llm_model}")
+        return result
