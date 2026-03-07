@@ -1,10 +1,6 @@
-import io
-
 from fastapi import APIRouter
 from langgraph.graph.state import CompiledStateGraph
-from starlette.responses import StreamingResponse
-
-from app.logic.nodes.state import StateSchema
+from langchain_core.messages import HumanMessage
 
 
 class AgentRouter:
@@ -17,5 +13,7 @@ class AgentRouter:
         self.router.post("/query")(self.agent_query)
 
     async def agent_query(self, payload: str):
-        res = await self.graph_agent.ainvoke(StateSchema(query=payload))
-        return StreamingResponse(io.BytesIO(res["image"]), media_type="image/png")
+        res = await self.graph_agent.ainvoke({
+            "messages": [HumanMessage(content=payload)]
+        })
+        return res

@@ -2,14 +2,16 @@ from dishka import Provider, Scope, make_container, provide
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import ToolNode
 from openai import AsyncOpenAI
 
 from app.application.agent.router import AgentRouter
 from app.infra.config import Settings
 from app.infra.llm.client import LLMClient
-from app.logic.nodes.agent import AgentNode
-from app.logic.nodes.diagram import CreateDiagramNode, RecognizeDiagramNode
-from app.logic.nodes.state import StateSchema
+
+from app.logic.nodes.llm_node import LLMNode
+from app.logic.nodes.state import MessagesState
+from app.logic.tools.test import tools
 from app.main import AppBuilder
 
 
@@ -37,35 +39,36 @@ class LLMProvider(Provider):
 
     @provide(scope=Scope.APP)
     def llm_client(self, client: AsyncOpenAI, settings: Settings) -> LLMClient:
-        return LLMClient(client=client, settings=settings)
+        return LLMClient(client=client, settings=settings, tools=tools)
 
     @provide(scope=Scope.APP)
-    def agent_node(self, llm_client: LLMClient) -> AgentNode:
-        return AgentNode(llm_client)
+    def llm_node(self, llm_client: LLMClient) -> LLMNode:
+        return LLMNode(llm_client)
 
-    @provide(scope=Scope.APP)
-    def recognize_diagram_mode(self, llm_client: LLMClient) -> RecognizeDiagramNode:
-        return RecognizeDiagramNode(llm_client)
 
-    @provide(scope=Scope.APP)
-    def create_diagram_mode(self) -> CreateDiagramNode:
-        return CreateDiagramNode()
 
     @provide(scope=Scope.APP)
     def graph_agent(
         self,
-        recognize_diagram_node: RecognizeDiagramNode,
-        create_diagram_node: CreateDiagramNode,
+        llm_node: LLMNode,
     ) -> CompiledStateGraph:
-        graph = StateGraph(StateSchema)
-        graph.add_node("recognize_diagram", recognize_diagram_node.execute)
-        graph.add_node("create_diagram", create_diagram_node.execute)
+        graph = StateGraph(MessagesState)
+        graph.add_node("llm_call", llm_node.execute)
 
-        graph.add_edge(START, "recognize_diagram")
-        graph.add_edge("recognize_diagram", "create_diagram")
-        graph.add_edge("create_diagram", END)
+        tool_node = ToolNode(tools)
+        graph.add_node("tools", tool_node)
+
+        def should_continue(state: MessagesState) -> str:
+            last_message = state["messages"][-1]
+            if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+                return "tools"
+            return END
+
+        graph.add_edge(START, "llm_call")
+        graph.add_conditional_edges("llm_call", should_continue)
+        graph.add_edge("tools", "llm_call")
+
         app = graph.compile()
-
         return app
 
 

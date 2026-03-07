@@ -1,8 +1,9 @@
 import json
 from logging import getLogger
-from typing import Any
+from typing import Any, Callable
 
-from openai import AsyncOpenAI
+from langchain_core.utils.function_calling import convert_to_openai_tool
+from openai import AsyncOpenAI, Omit
 from openai.types.chat import (
     ChatCompletionSystemMessageParam,
     ChatCompletionUserMessageParam,
@@ -18,9 +19,21 @@ class LLMClient:
         self,
         client: AsyncOpenAI,
         settings: Settings,
+        tools: list[Callable] | None = None,
     ):
         self.client = client
         self.settings = settings
+
+        self._setup_tools(tools)
+
+    def _setup_tools(self, tools: list[Callable] | None = None):
+        if tools is None:
+            self.tools = Omit
+            return
+        converted_tools = []
+        for tool in tools:
+            converted_tools.append(convert_to_openai_tool(tool))
+        self.tools = converted_tools
 
     async def completions_create(
         self,
@@ -39,6 +52,7 @@ class LLMClient:
                 ChatCompletionSystemMessageParam(content=system_prompt, role="system"),
                 ChatCompletionUserMessageParam(content=user_query, role="user"),
             ],
+            tools=self.tools,
             **chat_settings,
         )
         total_tokens = result.usage.total_tokens

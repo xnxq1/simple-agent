@@ -1,9 +1,12 @@
+import operator
+from typing import Annotated
+
+from langchain_core.messages import AnyMessage
+from langgraph.graph import add_messages
 from pydantic import BaseModel
 
-from app.infra.models import Diagram
 
 
-class StateSchema(BaseModel):
-    query: str
-    result: Diagram = None
-    image: str = None
+class MessagesState(BaseModel):
+    messages: Annotated[list, add_messages]
+    llm_calls: int = 0
