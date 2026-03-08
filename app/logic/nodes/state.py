@@ -12,4 +12,4 @@ class MessagesState(BaseModel):
 
 class IngestState(BaseModel):
     docs: list | None = Field(default_factory=list)
-    url: str
+    urls: list[str]

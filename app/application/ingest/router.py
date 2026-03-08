@@ -12,8 +12,8 @@ class IngestRouter:
     def register_routes(self):
         self.router.post("/")(self.ingest_execute)
 
-    async def ingest_execute(self, url: str):
+    async def ingest_execute(self, urls: list[str]):
         res = await self.ingest_graph.ainvoke(IngestState(
-            url=url,
+            urls=urls,
         ))
         return res

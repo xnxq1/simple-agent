@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
+from llama_index.readers.web import TrafilaturaWebReader
 from qdrant_client import QdrantClient, AsyncQdrantClient
 
 from app.application.agent.router import AgentRouter
@@ -101,7 +102,7 @@ class IngestProvider(Provider):
 
     @provide(scope=Scope.APP)
     def web_loader_node(self) -> WebLoaderNode:
-        return WebLoaderNode()
+        return WebLoaderNode(TrafilaturaWebReader())
 
     @provide(scope=Scope.APP)
     def ingest_graph(
