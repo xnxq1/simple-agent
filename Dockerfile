@@ -16,11 +16,11 @@ COPY pyproject.toml uv.lock ./
 # Install dependencies
 RUN uv sync --no-install-project
 
-# Copy source code
-COPY . .
-
 # Sync project dependencies
 RUN uv sync
+
+# Copy source code
+COPY . .
 
 EXPOSE 8000
 

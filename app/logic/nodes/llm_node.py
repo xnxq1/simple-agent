@@ -1,8 +1,8 @@
 from app.infra.llm.client import LLMClient
-from app.logic.nodes.base import Node
+from app.logic.nodes.base import BaseLLMNode
 from app.logic.nodes.state import MessagesState
 
-class LLMNode(Node):
+class LLMNode(BaseLLMNode):
 
     def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
