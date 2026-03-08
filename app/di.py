@@ -1,4 +1,5 @@
 from dishka import Provider, Scope, make_container, provide
+from langchain_huggingface import HuggingFaceEmbeddings
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -12,9 +13,12 @@ from app.application.ingest.router import IngestRouter
 from app.infra.config import Settings
 from app.infra.llm.client import LLMClient
 from app.infra.qdrant.repos.repos import QdrantRepo
+from app.logic.nodes.chunking import SemanticChunkingNode
+from app.logic.nodes.embeddings import EmbeddingNode
 
 from app.logic.nodes.llm_node import LLMNode
 from app.logic.nodes.loaders import WebLoaderNode
+from app.logic.nodes.qdrant import QdrantIngestNode
 from app.logic.nodes.state import MessagesState, IngestState
 from app.logic.tools.test import tools
 from app.main import AppBuilder
@@ -105,16 +109,37 @@ class IngestProvider(Provider):
         return WebLoaderNode(TrafilaturaWebReader())
 
     @provide(scope=Scope.APP)
+    def chunking_node(self) -> SemanticChunkingNode:
+        return SemanticChunkingNode()
+
+    @provide(scope=Scope.APP)
+    def embedding_node(self) -> EmbeddingNode:
+        return EmbeddingNode(HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
+
+    @provide(scope=Scope.APP)
+    def qdrant_ingest_node(self, qdrant_repo: QdrantRepo) -> QdrantIngestNode:
+        return QdrantIngestNode(qdrant_repo=qdrant_repo)
+
+    @provide(scope=Scope.APP)
     def ingest_graph(
         self,
         web_loader_node: WebLoaderNode,
+        chunking_node: SemanticChunkingNode,
+        embedding_node: EmbeddingNode,
+        qdrant_ingest_node: QdrantIngestNode,
     ) -> IngestGraph:
         "loader -> chunking -> embedding -> vector db"
         graph = StateGraph(IngestState)
-        graph.add_node("ingest", web_loader_node.execute)
+        graph.add_node("loader", web_loader_node.execute)
+        graph.add_node("chunking", chunking_node.execute)
+        graph.add_node("embedding", embedding_node.execute)
+        graph.add_node("qdrant", qdrant_ingest_node.execute)
 
-        graph.add_edge(START, "ingest")
-        graph.add_edge("ingest", END)
+        graph.add_edge(START, "loader")
+        graph.add_edge("loader", "chunking")
+        graph.add_edge("chunking", "embedding")
+        graph.add_edge("embedding", "qdrant")
+        graph.add_edge("qdrant", END)
         return graph.compile()
 
 

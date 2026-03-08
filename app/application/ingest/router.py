@@ -16,4 +16,4 @@ class IngestRouter:
         res = await self.ingest_graph.ainvoke(IngestState(
             urls=urls,
         ))
-        return res
+        return res['chunks']

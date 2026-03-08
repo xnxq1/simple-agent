@@ -12,7 +12,7 @@ class WebLoaderNode(BaseIngestNode):
 
 
     async def execute(self, state: IngestState):
-        documents = self.reader.load_data(
+        documents = await self.reader.aload_data(
             urls=state.urls,
         )
-        return {'docs': documents}
+        return {'documents': documents}

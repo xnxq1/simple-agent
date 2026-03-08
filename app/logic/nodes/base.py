@@ -12,5 +12,5 @@ class BaseLLMNode(abc.ABC):
 class BaseIngestNode(abc.ABC):
 
     @abc.abstractmethod
-    async def execute(self, state: IngestState) -> None:
+    async def execute(self, state: IngestState) -> dict:
         ...
