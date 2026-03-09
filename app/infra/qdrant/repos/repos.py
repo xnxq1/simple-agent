@@ -36,6 +36,7 @@ class QdrantRepo(QdrantInterface):
             collection_name=collection_name,
             query=vector,
             limit=limit,
+            using='dense',
         )
 
     async def hybrid_search(

@@ -20,13 +20,16 @@ from app.logic.nodes.llm_node import LLMNode
 from app.logic.nodes.loaders import WebLoaderNode
 from app.logic.nodes.qdrant import QdrantIngestNode
 from app.logic.nodes.state import MessagesState, IngestState
-from app.logic.tools.test import tools
+
+from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
 
 from typing import NewType
 
 AgentGraph = NewType("AgentGraph", CompiledStateGraph)
 IngestGraph = NewType("IngestGraph", CompiledStateGraph)
+RAGToolsType = NewType("RAGToolsType", list)
+ToolsType = NewType("ToolsType", list)
 
 class AppProvider(Provider):
     @provide(scope=Scope.APP)
@@ -46,10 +49,22 @@ class AppProvider(Provider):
         ingest_router.register_routes()
         return AppBuilder(routers=[agent_router.router, ingest_router.router], settings=settings)
 
+class ToolsProvider(Provider):
+    @provide(scope=Scope.APP)
+    def rag_tools(self, qdrant_repo: QdrantRepo) -> RAGToolsType:
+        rag = RAGTools(qdrant_repo=qdrant_repo, embed_model=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
+        return [rag.search_docs]
+
+    @provide(scope=Scope.APP)
+    def tools(
+        self,
+        rag_tools: RAGToolsType,
+    ) -> ToolsType:
+        return rag_tools
 
 class LLMProvider(Provider):
     @provide(scope=Scope.APP)
-    def llm_client(self, settings: Settings) -> LLMClient:
+    def llm_client(self, settings: Settings, tools: ToolsType) -> LLMClient:
         model = ChatOpenAI(
             model=settings.llm_model,
             temperature=0.2,
@@ -68,6 +83,7 @@ class LLMProvider(Provider):
     def graph_agent(
         self,
         llm_node: LLMNode,
+        tools: ToolsType,
     ) -> AgentGraph:
         graph = StateGraph(MessagesState)
         graph.add_node("llm_call", llm_node.execute)
@@ -148,5 +164,6 @@ providers = (
     AppProvider(),
     LLMProvider(),
     IngestProvider(),
+    ToolsProvider(),
 )
 container = make_container(*providers)
