@@ -11,10 +11,13 @@ services:
       - HF_HOME=/root/.cache/huggingface
     depends_on:
       - qdrant
+      - postgres
     volumes:
       - ./:/app
       - hf_cache:/root/.cache/huggingface
     command: ["uv", "run", "python", "manage.py", "start-api"]
+    networks:
+      - simple-network
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -24,7 +27,35 @@ services:
       - qdrant_data:/qdrant/storage
     environment:
       - QDRANT__SERVICE__HTTP_PORT=6333
+    networks:
+      - simple-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simple-network
 
 volumes:
   qdrant_data:
   hf_cache:
+  postgres_data:
+
+networks:
+  simple-network:
+    driver: bridge

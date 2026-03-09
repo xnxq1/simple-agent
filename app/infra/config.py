@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, computed_field
 
 load_dotenv()
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,7 +24,20 @@ class Settings(BaseSettings):
     qdrant_port: int = Field(default=6333, alias="QDRANT_PORT")
     top_k_limit: int = Field(default=3, alias="TOP_K_LIMIT")
 
-    firecrawl_api_key: str = Field(alias="FIRECRAWL_API_KEY")
+
+    postgres_db: str = Field(default="simple_agent", alias="POSTGRES_DB")
+    postgres_user: str = Field(default="simple_user", alias="POSTGRES_USER")
+    postgres_password: str = Field(default="simple_password", alias="POSTGRES_PASSWORD")
+    postgres_host: str = Field(default="postgres", alias="POSTGRES_HOST")
+    postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
+
+    @computed_field
+    @property
+    def db_url(self) -> str:
+        return (
+            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
 
 
 def get_settings() -> Settings:

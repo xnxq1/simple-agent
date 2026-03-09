@@ -7,12 +7,16 @@ from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
 from llama_index.readers.web import TrafilaturaWebReader
 from qdrant_client import QdrantClient, AsyncQdrantClient
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.application.agent.router import AgentRouter
 from app.application.ingest.router import IngestRouter
+from app.application.topics.router import TopicRouter
 from app.infra.config import Settings
+from app.infra.db.repos.topics import TopicsRepo
 from app.infra.llm.client import LLMClient
 from app.infra.qdrant.repos.repos import QdrantRepo
+from app.logic.handlers.topic import CreateTopicHandler
 from app.logic.nodes.chunking import SemanticChunkingNode
 from app.logic.nodes.embeddings import EmbeddingNode
 
@@ -42,12 +46,32 @@ class AppProvider(Provider):
         settings: Settings,
         agent_graph: AgentGraph,
         ingest_graph: IngestGraph,
+        topics_repo: TopicsRepo,
     ) -> AppBuilder:
+        topic_router = TopicRouter(create_topic_handler=CreateTopicHandler(topic_repo=topics_repo))
         agent_router = AgentRouter(graph_agent=agent_graph)
         agent_router.register_routes()
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
         ingest_router.register_routes()
         return AppBuilder(routers=[agent_router.router, ingest_router.router], settings=settings)
+
+class DBProvider(Provider):
+    @provide(scope=Scope.APP)
+    def async_engine(self, settings: Settings) -> AsyncEngine:
+        db_url = settings.db_url.replace("postgresql://", "postgresql+asyncpg://")
+        return create_async_engine(
+            db_url,
+            echo=settings.debug,
+            pool_size=20,
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+        )
+
+    @provide(scope=Scope.APP)
+    def topics_repo(self, engine: AsyncEngine) -> TopicsRepo:
+        return TopicsRepo(engine=engine)
+
 
 class ToolsProvider(Provider):
     @provide(scope=Scope.APP)
@@ -162,6 +186,7 @@ class IngestProvider(Provider):
 
 providers = (
     AppProvider(),
+    DBProvider(),
     LLMProvider(),
     IngestProvider(),
     ToolsProvider(),

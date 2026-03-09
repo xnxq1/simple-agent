@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update \
-    && apt-get install -y graphviz \
+    && apt-get install -y graphviz postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
@@ -24,4 +24,5 @@ COPY . .
 
 EXPOSE 8000
 
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uv", "run", "python", "manage.py", "start-api"]
