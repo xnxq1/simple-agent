@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     postgres_password: str = Field(default="simple_password", alias="POSTGRES_PASSWORD")
     postgres_host: str = Field(default="postgres", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
+    debug: bool = Field(default=False, alias="DEBUG")
+
 
     @computed_field
     @property

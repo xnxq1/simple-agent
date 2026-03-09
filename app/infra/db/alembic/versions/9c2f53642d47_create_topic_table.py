@@ -20,6 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     op.create_table('topics',
     sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
     sa.Column('created', sa.TIMESTAMP(timezone=True), server_default=sa.text("(now() at time zone 'utc')"), nullable=False),
@@ -34,3 +35,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_table('topics')
+    op.execute('DROP EXTENSION IF EXISTS "uuid-ossp"')

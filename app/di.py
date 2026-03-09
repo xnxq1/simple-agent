@@ -50,10 +50,8 @@ class AppProvider(Provider):
     ) -> AppBuilder:
         topic_router = TopicRouter(create_topic_handler=CreateTopicHandler(topic_repo=topics_repo))
         agent_router = AgentRouter(graph_agent=agent_graph)
-        agent_router.register_routes()
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
-        ingest_router.register_routes()
-        return AppBuilder(routers=[agent_router.router, ingest_router.router], settings=settings)
+        return AppBuilder(routers=[agent_router.router, ingest_router.router, topic_router.router], settings=settings)
 
 class DBProvider(Provider):
     @provide(scope=Scope.APP)
