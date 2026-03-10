@@ -1,16 +1,10 @@
 import abc
 
-from app.logic.nodes.state import MessagesState, IngestState
+from app.logic.nodes.state import MessagesState
 
 
 class BaseLLMNode(abc.ABC):
 
     @abc.abstractmethod
     async def execute(self, state: MessagesState) -> MessagesState:
-        ...
-
-class BaseIngestNode(abc.ABC):
-
-    @abc.abstractmethod
-    async def execute(self, state: IngestState) -> dict:
         ...

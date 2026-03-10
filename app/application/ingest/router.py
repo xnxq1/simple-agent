@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.logic.nodes.state import IngestState
+from app.logic.nodes.ingest.base import IngestState
 
 
 class IngestRouter:

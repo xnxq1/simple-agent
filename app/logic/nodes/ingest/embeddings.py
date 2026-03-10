@@ -1,10 +1,7 @@
-import asyncio
 
 from langchain_core.embeddings import Embeddings
-from langchain_huggingface import HuggingFaceEmbeddings
 
-from app.logic.nodes.base import BaseIngestNode
-from app.logic.nodes.state import IngestState
+from app.logic.nodes.ingest.base import BaseIngestNode, IngestState
 
 
 class EmbeddingNode(BaseIngestNode):

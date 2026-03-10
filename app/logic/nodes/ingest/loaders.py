@@ -1,9 +1,7 @@
 from llama_index.core.readers.base import BaseReader
 
-from app.logic.nodes.base import BaseIngestNode
-from llama_index.readers.web import TrafilaturaWebReader
+from app.logic.nodes.ingest.base import BaseIngestNode, IngestState
 
-from app.logic.nodes.state import IngestState
 
 
 class WebLoaderNode(BaseIngestNode):

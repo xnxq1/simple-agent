@@ -2,8 +2,7 @@ import uuid
 
 from app.infra.qdrant.repos.interfaces import QdrantPoint
 from app.infra.qdrant.repos.repos import QdrantRepo
-from app.logic.nodes.base import BaseIngestNode
-from app.logic.nodes.state import IngestState
+from app.logic.nodes.ingest.base import BaseIngestNode, IngestState
 
 
 class QdrantIngestNode(BaseIngestNode):

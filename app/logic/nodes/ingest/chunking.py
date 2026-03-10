@@ -1,12 +1,12 @@
 import asyncio
+import re
+import uuid
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from llama_index.core.node_parser import SemanticSplitterNodeParser, SentenceSplitter
-from llama_index.core import Document
+from llama_index.core.node_parser import SemanticSplitterNodeParser
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-from app.logic.nodes.base import BaseIngestNode
-from app.logic.nodes.state import IngestState, Chunk
+from app.logic.nodes.ingest.base import BaseIngestNode, Chunk, IngestState, SemanticChunk
 
 
 class SemanticChunkingNode(BaseIngestNode):
@@ -20,13 +20,24 @@ class SemanticChunkingNode(BaseIngestNode):
             chunk_overlap=100,
         )
 
+    @staticmethod
+    def _is_garbage(text: str) -> bool:
+        """Check if chunk contains no alphabetic characters (only numbers/whitespace)."""
+        return not re.search(r'[a-zA-Zа-яА-Я]', text)
+
     async def execute(self, state: IngestState) -> dict:
         semantic_nodes = await self.semantic_splitter.aget_nodes_from_documents(
             documents=state.documents
         )
         final_chunks = []
+        semantic_chunks = []
         for node in semantic_nodes:
             metadata = node.metadata
             chunks = await asyncio.to_thread(self.sentence_splitter.split_text, text=node.text)
-            final_chunks.extend([Chunk(text=chunk, metadata=metadata) for chunk in chunks])
-        return {"chunks": final_chunks}
+            chunks = [t for t in chunks if not self._is_garbage(t)]
+            if not chunks:
+                continue
+            chunks = [Chunk(id=uuid.uuid4(), text=chunk, metadata=metadata) for chunk in chunks]
+            final_chunks.extend(chunks)
+            semantic_chunks.append(SemanticChunk(text=node.text, metadata={}, chunk_ids=[chunk.id for chunk in chunks]))
+        return {"chunks": final_chunks, "semantic_chunks": semantic_chunks}

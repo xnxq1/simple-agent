@@ -6,7 +6,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
 from llama_index.readers.web import TrafilaturaWebReader
-from qdrant_client import QdrantClient, AsyncQdrantClient
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.application.agent.router import AgentRouter
@@ -16,14 +16,16 @@ from app.infra.config import Settings
 from app.infra.db.repos.topics import TopicsRepo
 from app.infra.llm.client import LLMClient
 from app.infra.qdrant.repos.repos import QdrantRepo
-from app.logic.handlers.topic import CreateTopicHandler
-from app.logic.nodes.chunking import SemanticChunkingNode
-from app.logic.nodes.embeddings import EmbeddingNode
+from app.logic.handlers.topic import CreateTopicHandler, GetTopicHandler, UpdateTopicHandler
+from app.logic.nodes.ingest.base import IngestState
+from app.logic.nodes.ingest.chunking import SemanticChunkingNode
+from app.logic.nodes.ingest.embeddings import EmbeddingNode
+from app.logic.nodes.ingest.metadata_filling import MetadataFillingNode
 
 from app.logic.nodes.llm_node import LLMNode
-from app.logic.nodes.loaders import WebLoaderNode
-from app.logic.nodes.qdrant import QdrantIngestNode
-from app.logic.nodes.state import MessagesState, IngestState
+from app.logic.nodes.ingest.loaders import WebLoaderNode
+from app.logic.nodes.ingest.qdrant import QdrantIngestNode
+from app.logic.nodes.state import MessagesState
 
 from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
@@ -48,7 +50,11 @@ class AppProvider(Provider):
         ingest_graph: IngestGraph,
         topics_repo: TopicsRepo,
     ) -> AppBuilder:
-        topic_router = TopicRouter(create_topic_handler=CreateTopicHandler(topic_repo=topics_repo))
+        topic_router = TopicRouter(
+            create_topic_handler=CreateTopicHandler(topic_repo=topics_repo),
+            get_topic_handler=GetTopicHandler(topic_repo=topics_repo),
+            update_topic_handler=UpdateTopicHandler(topic_repo=topics_repo),
+        )
         agent_router = AgentRouter(graph_agent=agent_graph)
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
         return AppBuilder(routers=[agent_router.router, ingest_router.router, topic_router.router], settings=settings)
@@ -159,23 +165,34 @@ class IngestProvider(Provider):
         return QdrantIngestNode(qdrant_repo=qdrant_repo)
 
     @provide(scope=Scope.APP)
+    def metadata_filling_node(
+        self,
+        topics_repo: TopicsRepo,
+        llm_client: LLMClient,
+    ) -> MetadataFillingNode:
+        return MetadataFillingNode(topics_repo=topics_repo, llm_client=llm_client)
+
+    @provide(scope=Scope.APP)
     def ingest_graph(
         self,
         web_loader_node: WebLoaderNode,
         chunking_node: SemanticChunkingNode,
+        metadata_filling_node: MetadataFillingNode,
         embedding_node: EmbeddingNode,
         qdrant_ingest_node: QdrantIngestNode,
     ) -> IngestGraph:
-        "loader -> chunking -> embedding -> vector db"
+        "loader -> chunking -> metadata filling -> embedding -> vector db"
         graph = StateGraph(IngestState)
         graph.add_node("loader", web_loader_node.execute)
         graph.add_node("chunking", chunking_node.execute)
         graph.add_node("embedding", embedding_node.execute)
         graph.add_node("qdrant", qdrant_ingest_node.execute)
+        graph.add_node("metadata", metadata_filling_node.execute)
 
         graph.add_edge(START, "loader")
         graph.add_edge("loader", "chunking")
-        graph.add_edge("chunking", "embedding")
+        graph.add_edge("chunking", "metadata")
+        graph.add_edge("metadata", "embedding")
         graph.add_edge("embedding", "qdrant")
         graph.add_edge("qdrant", END)
         return graph.compile()
