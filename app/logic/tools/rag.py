@@ -27,7 +27,8 @@ class RAGTools:
         Args:
             text: The search query string to find similar documents for.
             top_k: Maximum number of similar documents to return (1-100).
-            topics: Optional list of topics to filter results by.
+            topics: Optional list of topics to filter results by. When provided, returns documents
+                that have one of the specified topics OR documents with no topic assigned.
 
         Returns:
             QueryResponse: A Qdrant QueryResponse object containing matched documents
@@ -44,11 +45,15 @@ class RAGTools:
         query_embed = await self.embed_model.aembed_query(text=text)
         query_filter = None
         if topics:
+            # Filter by matching topics OR documents without a topic assigned
             query_filter = models.Filter(
-                must=[models.FieldCondition(
-                    key="topic",
-                    match=models.MatchAny(any=topics)
-                )]
+                should=[
+                    models.FieldCondition(
+                        key="topic",
+                        match=models.MatchAny(any=topics)
+                    ),
+                    models.IsEmptyCondition(is_empty=models.PayloadField(key="topic"))
+                ]
             )
         return await self.qdrant_repo.search(
             collection_name=self.settings.qdrant_collection,

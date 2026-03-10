@@ -6,7 +6,7 @@ class DBTools:
     def __init__(self, topics_repo: TopicsRepo):
         self.topics_repo = topics_repo
 
-    async def get_available_topics(self) -> list[Topic]:
+    async def get_available_topics(self) -> list[str]:
         """
         Retrieve all active topics available in the knowledge base.
 
@@ -15,6 +15,7 @@ class DBTools:
         as the `topics` filter to narrow results.
 
         Returns:
-            list[Topic]: A list of Topic objects, each with an `id` and `name` field.
+            list[str]: A list of names objects.
         """
-        return await self.topics_repo.search(archived=False, is_active=True)
+        result = await self.topics_repo.search(archived=False, is_active=True)
+        return [r.name for r in result]

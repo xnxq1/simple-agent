@@ -38,6 +38,7 @@ IngestGraph = NewType("IngestGraph", CompiledStateGraph)
 RAGToolsType = NewType("RAGToolsType", list)
 DBToolsType = NewType("DBToolsType", list)
 ToolsType = NewType("ToolsType", list)
+LLMWithoutToolsType = NewType("LLMWithoutToolsType", LLMClient)
 
 class AppProvider(Provider):
     @provide(scope=Scope.APP)
@@ -116,7 +117,7 @@ class LLMProvider(Provider):
         return LLMClient(model=model, settings=settings, tools=tools)
 
     @provide(scope=Scope.APP)
-    def llm_client_no_tools(self, settings: Settings) -> LLMClient:
+    def llm_client_no_tools(self, settings: Settings) -> LLMWithoutToolsType:
         """LLM client without tools, used for content analysis tasks."""
         model = ChatOpenAI(
             model=settings.llm_model,
@@ -193,7 +194,7 @@ class IngestProvider(Provider):
     def metadata_filling_node(
         self,
         topics_repo: TopicsRepo,
-        llm_client_no_tools: LLMClient,
+        llm_client_no_tools: LLMWithoutToolsType,
     ) -> MetadataFillingNode:
         return MetadataFillingNode(topics_repo=topics_repo, llm_client=llm_client_no_tools)
 
