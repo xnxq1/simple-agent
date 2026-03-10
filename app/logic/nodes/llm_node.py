@@ -25,6 +25,12 @@ class LLMNode(BaseLLMNode):
             Guidelines:
 
             - Prefer `search_docs` for domain-specific information.
+            - If the query relates to a specific subject, call `get_available_topics` first to
+              retrieve active topics, then pass matching topic names to `search_docs` as the
+              `topics` filter to narrow results.
+            - When filtering by topic, note that some documents may have no topic assigned.
+              If topic-filtered search returns too few results, retry `search_docs` without
+              the `topics` filter to include unclassified documents.
             - If multiple documents are returned, focus on the most relevant parts.
             - Do not invent information not present in the retrieved context.
             - If no relevant information is found, say so.
