@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     qdrant_host: str = Field(default="qdrant", alias="QDRANT_HOST")
     qdrant_port: int = Field(default=6333, alias="QDRANT_PORT")
+    qdrant_collection: str = Field(default="test", alias="QDRANT_COLLECTION")
+    qdrant_score_threshold: float = Field(default=0.5, alias="QDRANT_SCORE_THRESHOLD")
     top_k_limit: int = Field(default=3, alias="TOP_K_LIMIT")
 
 

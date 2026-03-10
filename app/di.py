@@ -77,10 +77,16 @@ class DBProvider(Provider):
         return TopicsRepo(engine=engine)
 
 
+class EmbeddingsProvider(Provider):
+    @provide(scope=Scope.APP)
+    def embeddings_model(self) -> HuggingFaceEmbeddings:
+        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+
 class ToolsProvider(Provider):
     @provide(scope=Scope.APP)
-    def rag_tools(self, qdrant_repo: QdrantRepo) -> RAGToolsType:
-        rag = RAGTools(qdrant_repo=qdrant_repo, embed_model=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
+    def rag_tools(self, qdrant_repo: QdrantRepo, embeddings_model: HuggingFaceEmbeddings, settings: Settings) -> RAGToolsType:
+        rag = RAGTools(qdrant_repo=qdrant_repo, embed_model=embeddings_model, settings=settings)
         return [rag.search_docs]
 
     @provide(scope=Scope.APP)
@@ -100,6 +106,17 @@ class LLMProvider(Provider):
             base_url=settings.open_ai_base_url,
         )
         return LLMClient(model=model, settings=settings, tools=tools)
+
+    @provide(scope=Scope.APP)
+    def llm_client_no_tools(self, settings: Settings) -> LLMClient:
+        """LLM client without tools, used for content analysis tasks."""
+        model = ChatOpenAI(
+            model=settings.llm_model,
+            temperature=0.2,
+            api_key=settings.open_ai_api_key,
+            base_url=settings.open_ai_base_url,
+        )
+        return LLMClient(model=model, settings=settings, tools=[])
 
     @provide(scope=Scope.APP)
     def llm_node(self, llm_client: LLMClient) -> LLMNode:
@@ -157,20 +174,20 @@ class IngestProvider(Provider):
         return SemanticChunkingNode()
 
     @provide(scope=Scope.APP)
-    def embedding_node(self) -> EmbeddingNode:
-        return EmbeddingNode(HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
+    def embedding_node(self, embeddings_model: HuggingFaceEmbeddings) -> EmbeddingNode:
+        return EmbeddingNode(embeddings_model)
 
     @provide(scope=Scope.APP)
-    def qdrant_ingest_node(self, qdrant_repo: QdrantRepo) -> QdrantIngestNode:
-        return QdrantIngestNode(qdrant_repo=qdrant_repo)
+    def qdrant_ingest_node(self, qdrant_repo: QdrantRepo, settings: Settings) -> QdrantIngestNode:
+        return QdrantIngestNode(qdrant_repo=qdrant_repo, settings=settings)
 
     @provide(scope=Scope.APP)
     def metadata_filling_node(
         self,
         topics_repo: TopicsRepo,
-        llm_client: LLMClient,
+        llm_client_no_tools: LLMClient,
     ) -> MetadataFillingNode:
-        return MetadataFillingNode(topics_repo=topics_repo, llm_client=llm_client)
+        return MetadataFillingNode(topics_repo=topics_repo, llm_client=llm_client_no_tools)
 
     @provide(scope=Scope.APP)
     def ingest_graph(
@@ -202,6 +219,7 @@ class IngestProvider(Provider):
 providers = (
     AppProvider(),
     DBProvider(),
+    EmbeddingsProvider(),
     LLMProvider(),
     IngestProvider(),
     ToolsProvider(),

@@ -8,6 +8,8 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 from app.logic.nodes.ingest.base import BaseIngestNode, Chunk, IngestState, SemanticChunk
 
+MIN_CHUNK_LENGTH = 50
+
 
 class SemanticChunkingNode(BaseIngestNode):
     def __init__(self):
@@ -22,7 +24,9 @@ class SemanticChunkingNode(BaseIngestNode):
 
     @staticmethod
     def _is_garbage(text: str) -> bool:
-        """Check if chunk contains no alphabetic characters (only numbers/whitespace)."""
+        """Check if chunk is too short or contains no alphabetic characters."""
+        if len(text.strip()) < MIN_CHUNK_LENGTH:
+            return True
         return not re.search(r'[a-zA-Zа-яА-Я]', text)
 
     async def execute(self, state: IngestState) -> dict:

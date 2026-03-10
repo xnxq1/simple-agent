@@ -23,8 +23,8 @@ class LLMNode(BaseLLMNode):
             5. Use the retrieved information to construct the answer.
             
             Guidelines:
-            
-            - Prefer `seatch_docs` for domain-specific information.
+
+            - Prefer `search_docs` for domain-specific information.
             - If multiple documents are returned, focus on the most relevant parts.
             - Do not invent information not present in the retrieved context.
             - If no relevant information is found, say so.

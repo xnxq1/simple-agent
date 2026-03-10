@@ -1,6 +1,11 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from app.logic.nodes.ingest.base import IngestState
+
+
+class IngestRequest(BaseModel):
+    urls: list[str]
 
 
 class IngestRouter:
@@ -12,8 +17,8 @@ class IngestRouter:
     def register_routes(self):
         self.router.post("/")(self.ingest_execute)
 
-    async def ingest_execute(self, urls: list[str]):
+    async def ingest_execute(self, request: IngestRequest):
         res = await self.ingest_graph.ainvoke(IngestState(
-            urls=urls,
+            urls=request.urls,
         ))
         return res['chunks']
