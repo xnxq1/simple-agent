@@ -26,6 +26,7 @@ from app.logic.nodes.llm_node import LLMNode
 from app.logic.nodes.ingest.loaders import WebLoaderNode
 from app.logic.nodes.ingest.qdrant import QdrantIngestNode
 from app.logic.nodes.state import MessagesState
+from app.logic.tools.db import DBTools
 
 from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
@@ -35,6 +36,7 @@ from typing import NewType
 AgentGraph = NewType("AgentGraph", CompiledStateGraph)
 IngestGraph = NewType("IngestGraph", CompiledStateGraph)
 RAGToolsType = NewType("RAGToolsType", list)
+DBToolsType = NewType("DBToolsType", list)
 ToolsType = NewType("ToolsType", list)
 
 class AppProvider(Provider):
@@ -90,11 +92,17 @@ class ToolsProvider(Provider):
         return [rag.search_docs]
 
     @provide(scope=Scope.APP)
+    def db_tools(self, topics_repo: TopicsRepo) -> DBToolsType:
+        rag = DBTools(topics_repo=topics_repo)
+        return [rag.get_available_topics]
+
+    @provide(scope=Scope.APP)
     def tools(
         self,
         rag_tools: RAGToolsType,
+        db_tools: DBToolsType,
     ) -> ToolsType:
-        return rag_tools
+        return rag_tools + db_tools
 
 class LLMProvider(Provider):
     @provide(scope=Scope.APP)

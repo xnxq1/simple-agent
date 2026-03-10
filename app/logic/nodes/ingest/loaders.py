@@ -18,7 +18,6 @@ class WebLoaderNode(BaseIngestNode):
         for url in state.urls:
             try:
                 docs = await self.reader.aload_data(urls=[url])
-                # Ensure URL is in metadata for all documents
                 for doc in docs:
                     if 'url' not in doc.metadata:
                         doc.metadata['url'] = url
