@@ -63,7 +63,9 @@ class EntityRepo(BaseRepo):
 
     def _apply_filters(self, query, **filters):
         for filter_name, filter_value in filters.items():
-            query = query.where(self._get_filter_bool_expression(filter_name, filter_value, query))
+            query = query.where(
+                self._get_filter_bool_expression(filter_name, filter_value, query)
+            )
 
         return query
 

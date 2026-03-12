@@ -2,8 +2,8 @@ from app.infra.llm.client import LLMClient
 from app.logic.nodes.base import BaseLLMNode
 from app.logic.nodes.state import MessagesState
 
-class LLMNode(BaseLLMNode):
 
+class LLMNode(BaseLLMNode):
     def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
 
@@ -32,9 +32,6 @@ class LLMNode(BaseLLMNode):
             - Чёткий и лаконичный ответ на основе найденных данных.
             - Если информация не найдена: «В базе знаний нет информации по этому вопросу.»
             """,
-            messages=state.messages
+            messages=state.messages,
         )
-        return {
-            "messages": [result],
-            "llm_calls": state.llm_calls + 1
-        }
+        return {"messages": [result], "llm_calls": state.llm_calls + 1}

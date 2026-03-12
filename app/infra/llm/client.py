@@ -2,7 +2,7 @@ import json
 from logging import getLogger
 from typing import Any, Callable
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from app.infra.config import Settings
@@ -37,7 +37,9 @@ class LLMClient:
             if response_class:
                 model = self.model.with_structured_output(response_class)
                 result = await model.ainvoke(full_messages)
-                logger.info(f"Query to {self.settings.llm_model} with structured output")
+                logger.info(
+                    f"Query to {self.settings.llm_model} with structured output"
+                )
                 return result
             else:
                 result = await self.model.ainvoke(full_messages)

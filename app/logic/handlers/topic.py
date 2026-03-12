@@ -5,12 +5,11 @@ from app.logic.handlers.base import BaseHandler
 
 
 class CreateTopicHandler(BaseHandler):
-
     def __init__(self, topic_repo: TopicsRepo) -> None:
         self.topic_repo = topic_repo
 
     async def execute(self, name: str) -> None:
-        return await self.topic_repo.insert(payload={'name': name, 'is_active': True})
+        return await self.topic_repo.insert(payload={"name": name, "is_active": True})
 
 
 class GetTopicHandler(BaseHandler):
@@ -19,6 +18,7 @@ class GetTopicHandler(BaseHandler):
 
     async def execute(self) -> list:
         return await self.topic_repo.search()
+
 
 class UpdateTopicHandler(BaseHandler):
     def __init__(self, topic_repo: TopicsRepo) -> None:

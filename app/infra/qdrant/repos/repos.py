@@ -1,4 +1,5 @@
 import logging
+
 from qdrant_client import AsyncQdrantClient, models
 from qdrant_client.http.models import Distance, QueryResponse, VectorParams
 
@@ -38,7 +39,9 @@ class QdrantRepo(QdrantInterface):
         self, collection_name: str, points: list[QdrantPoint]
     ) -> None:
         if not await self.client.collection_exists(collection_name=collection_name):
-            raise CollectionNotExistError(f"Collection {collection_name} does not exist")
+            raise CollectionNotExistError(
+                f"Collection {collection_name} does not exist"
+            )
         await self.client.upsert(
             collection_name=collection_name,
             points=points,
@@ -52,7 +55,7 @@ class QdrantRepo(QdrantInterface):
             collection_name=collection_name,
             query=vector,
             limit=limit,
-            using='dense',
+            using="dense",
             query_filter=query_filter,
             score_threshold=self.settings.qdrant_score_threshold,
         )

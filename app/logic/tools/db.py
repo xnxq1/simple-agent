@@ -1,4 +1,3 @@
-from app.domain.topics import Topic
 from app.infra.db.repos.topics import TopicsRepo
 
 

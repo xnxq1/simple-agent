@@ -26,14 +26,12 @@ class Settings(BaseSettings):
     qdrant_score_threshold: float = Field(default=0.5, alias="QDRANT_SCORE_THRESHOLD")
     top_k_limit: int = Field(default=3, alias="TOP_K_LIMIT")
 
-
     postgres_db: str = Field(default="simple_agent", alias="POSTGRES_DB")
     postgres_user: str = Field(default="simple_user", alias="POSTGRES_USER")
     postgres_password: str = Field(default="simple_password", alias="POSTGRES_PASSWORD")
     postgres_host: str = Field(default="postgres", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
     debug: bool = Field(default=False, alias="DEBUG")
-
 
     @computed_field
     @property

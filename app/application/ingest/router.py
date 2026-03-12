@@ -18,7 +18,9 @@ class IngestRouter:
         self.router.post("/")(self.ingest_execute)
 
     async def ingest_execute(self, request: IngestRequest):
-        res = await self.ingest_graph.ainvoke(IngestState(
-            urls=request.urls,
-        ))
-        return res['chunks']
+        res = await self.ingest_graph.ainvoke(
+            IngestState(
+                urls=request.urls,
+            )
+        )
+        return res["chunks"]

@@ -1,4 +1,3 @@
-
 from langchain_core.embeddings import Embeddings
 from qdrant_client import models
 from qdrant_client.http.models import QueryResponse
@@ -18,7 +17,9 @@ class RAGTools:
         self.embed_model = embed_model
         self.settings = settings
 
-    async def search_docs(self, text: str, top_k: int, topics: list[str] | None = None) -> QueryResponse:
+    async def search_docs(
+        self, text: str, top_k: int, topics: list[str] | None = None
+    ) -> QueryResponse:
         """Search for documents similar to the given query text.
 
         Performs semantic search by embedding the query text and finding the most
@@ -49,17 +50,14 @@ class RAGTools:
             query_filter = models.Filter(
                 should=[
                     models.FieldCondition(
-                        key="topic",
-                        match=models.MatchAny(any=topics)
+                        key="topic", match=models.MatchAny(any=topics)
                     ),
-                    models.IsEmptyCondition(is_empty=models.PayloadField(key="topic"))
+                    models.IsEmptyCondition(is_empty=models.PayloadField(key="topic")),
                 ]
             )
         return await self.qdrant_repo.search(
             collection_name=self.settings.qdrant_collection,
             vector=query_embed,
             limit=top_k,
-            query_filter=query_filter
+            query_filter=query_filter,
         )
-
-

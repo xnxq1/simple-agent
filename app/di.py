@@ -1,10 +1,11 @@
+from typing import NewType
+
 from dishka import Provider, Scope, make_container, provide
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import ChatOpenAI
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
-from langgraph.prebuilt import ToolNode
-from langchain_openai import ChatOpenAI
 from llama_index.readers.web import TrafilaturaWebReader
 from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -16,22 +17,23 @@ from app.infra.config import Settings
 from app.infra.db.repos.topics import TopicsRepo
 from app.infra.llm.client import LLMClient
 from app.infra.qdrant.repos.repos import QdrantRepo
-from app.logic.handlers.topic import CreateTopicHandler, GetTopicHandler, UpdateTopicHandler
+from app.logic.handlers.topic import (
+    CreateTopicHandler,
+    GetTopicHandler,
+    UpdateTopicHandler,
+)
 from app.logic.nodes.ingest.base import IngestState
 from app.logic.nodes.ingest.chunking import SemanticChunkingNode
 from app.logic.nodes.ingest.embeddings import EmbeddingNode
-from app.logic.nodes.ingest.metadata_filling import MetadataFillingNode
-
-from app.logic.nodes.llm_node import LLMNode
 from app.logic.nodes.ingest.loaders import WebLoaderNode
+from app.logic.nodes.ingest.metadata_filling import MetadataFillingNode
 from app.logic.nodes.ingest.qdrant import QdrantIngestNode
+from app.logic.nodes.llm_node import LLMNode
 from app.logic.nodes.state import MessagesState
+from app.logic.nodes.tool_node import ToolNode
 from app.logic.tools.db import DBTools
-
 from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
-
-from typing import NewType
 
 AgentGraph = NewType("AgentGraph", CompiledStateGraph)
 IngestGraph = NewType("IngestGraph", CompiledStateGraph)
@@ -39,6 +41,7 @@ RAGToolsType = NewType("RAGToolsType", list)
 DBToolsType = NewType("DBToolsType", list)
 ToolsType = NewType("ToolsType", list)
 LLMWithoutToolsType = NewType("LLMWithoutToolsType", LLMClient)
+
 
 class AppProvider(Provider):
     @provide(scope=Scope.APP)
@@ -60,7 +63,11 @@ class AppProvider(Provider):
         )
         agent_router = AgentRouter(graph_agent=agent_graph)
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
-        return AppBuilder(routers=[agent_router.router, ingest_router.router, topic_router.router], settings=settings)
+        return AppBuilder(
+            routers=[agent_router.router, ingest_router.router, topic_router.router],
+            settings=settings,
+        )
+
 
 class DBProvider(Provider):
     @provide(scope=Scope.APP)
@@ -88,8 +95,15 @@ class EmbeddingsProvider(Provider):
 
 class ToolsProvider(Provider):
     @provide(scope=Scope.APP)
-    def rag_tools(self, qdrant_repo: QdrantRepo, embeddings_model: HuggingFaceEmbeddings, settings: Settings) -> RAGToolsType:
-        rag = RAGTools(qdrant_repo=qdrant_repo, embed_model=embeddings_model, settings=settings)
+    def rag_tools(
+        self,
+        qdrant_repo: QdrantRepo,
+        embeddings_model: HuggingFaceEmbeddings,
+        settings: Settings,
+    ) -> RAGToolsType:
+        rag = RAGTools(
+            qdrant_repo=qdrant_repo, embed_model=embeddings_model, settings=settings
+        )
         return [rag.search_docs]
 
     @provide(scope=Scope.APP)
@@ -104,6 +118,7 @@ class ToolsProvider(Provider):
         db_tools: DBToolsType,
     ) -> ToolsType:
         return rag_tools + db_tools
+
 
 class LLMProvider(Provider):
     @provide(scope=Scope.APP)
@@ -131,8 +146,6 @@ class LLMProvider(Provider):
     def llm_node(self, llm_client: LLMClient) -> LLMNode:
         return LLMNode(llm_client)
 
-
-
     @provide(scope=Scope.APP)
     def graph_agent(
         self,
@@ -143,12 +156,13 @@ class LLMProvider(Provider):
         graph.add_node("llm_call", llm_node.execute)
 
         tool_node = ToolNode(tools)
-        graph.add_node("tools", tool_node)
+        graph.add_node("tools", tool_node.execute)
 
         def should_continue(state: MessagesState) -> str:
             last_message = state.messages[-1]
             if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                 return "tools"
+            state.answer = last_message
             return END
 
         graph.add_edge(START, "llm_call")
@@ -159,11 +173,7 @@ class LLMProvider(Provider):
         return app
 
 
-
-
-
 class IngestProvider(Provider):
-
     @provide(scope=Scope.APP)
     def qdrant_repo(self, settings: Settings) -> QdrantRepo:
         return QdrantRepo(
@@ -171,7 +181,7 @@ class IngestProvider(Provider):
                 host=settings.qdrant_host,
                 port=settings.qdrant_port,
             ),
-            settings=settings
+            settings=settings,
         )
 
     @provide(scope=Scope.APP)
@@ -187,7 +197,9 @@ class IngestProvider(Provider):
         return EmbeddingNode(embeddings_model)
 
     @provide(scope=Scope.APP)
-    def qdrant_ingest_node(self, qdrant_repo: QdrantRepo, settings: Settings) -> QdrantIngestNode:
+    def qdrant_ingest_node(
+        self, qdrant_repo: QdrantRepo, settings: Settings
+    ) -> QdrantIngestNode:
         return QdrantIngestNode(qdrant_repo=qdrant_repo, settings=settings)
 
     @provide(scope=Scope.APP)
@@ -196,7 +208,9 @@ class IngestProvider(Provider):
         topics_repo: TopicsRepo,
         llm_client_no_tools: LLMWithoutToolsType,
     ) -> MetadataFillingNode:
-        return MetadataFillingNode(topics_repo=topics_repo, llm_client=llm_client_no_tools)
+        return MetadataFillingNode(
+            topics_repo=topics_repo, llm_client=llm_client_no_tools
+        )
 
     @provide(scope=Scope.APP)
     def ingest_graph(
@@ -222,7 +236,6 @@ class IngestProvider(Provider):
         graph.add_edge("embedding", "qdrant")
         graph.add_edge("qdrant", END)
         return graph.compile()
-
 
 
 providers = (

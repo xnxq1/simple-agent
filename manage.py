@@ -1,5 +1,6 @@
-import click
 import logging
+
+import click
 import uvicorn
 
 from app.di import container

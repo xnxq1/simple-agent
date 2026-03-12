@@ -12,11 +12,13 @@ class Chunk:
     text: str
     metadata: dict
 
+
 @dataclasses.dataclass
 class SemanticChunk:
     metadata: dict
     text: str
     chunk_ids: List[UUID]
+
 
 class IngestState(BaseModel):
     documents: list | None = Field(default_factory=list)
@@ -25,8 +27,7 @@ class IngestState(BaseModel):
     semantic_chunks: list[SemanticChunk] | None = Field(default_factory=list)
     embeddings: list[list[float]] | None = Field(default_factory=list)
 
-class BaseIngestNode(abc.ABC):
 
+class BaseIngestNode(abc.ABC):
     @abc.abstractmethod
-    async def execute(self, state: IngestState) -> dict:
-        ...
+    async def execute(self, state: IngestState) -> dict: ...

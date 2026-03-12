@@ -1,4 +1,4 @@
-from sqlalchemy import NUMERIC, Column, Index, String, Table, Boolean
+from sqlalchemy import Boolean, Column, String, Table
 
 from app.infra.db.utils import get_base_fields, metadata
 

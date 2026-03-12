@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from langgraph.graph.state import CompiledStateGraph
 from langchain_core.messages import HumanMessage
+from langgraph.graph.state import CompiledStateGraph
 
 from app.logic.nodes.state import MessagesState
 
@@ -15,8 +15,11 @@ class AgentRouter:
         self.router.post("/query")(self.agent_query)
 
     async def agent_query(self, payload: str):
-        res = await self.graph_agent.ainvoke(MessagesState(
-            messages=[HumanMessage(content=payload)]
-        ))
+        res = await self.graph_agent.ainvoke(
+            MessagesState(
+                messages=[HumanMessage(content=payload)],
+                question=payload,
+            )
+        )
         # return res['messages'][-1].content
         return res

@@ -3,10 +3,16 @@ from uuid import UUID
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.logic.handlers.topic import CreateTopicHandler, GetTopicHandler, UpdateTopicHandler
+from app.logic.handlers.topic import (
+    CreateTopicHandler,
+    GetTopicHandler,
+    UpdateTopicHandler,
+)
+
 
 class UpdateTopic(BaseModel):
     archived: bool
+
 
 class TopicRouter:
     def __init__(
@@ -35,5 +41,7 @@ class TopicRouter:
         return res
 
     async def update_topic(self, entity_id: UUID, payload: UpdateTopic):
-        res = await self.update_topic_handler.execute(entity_id=entity_id, **payload.model_dump())
+        res = await self.update_topic_handler.execute(
+            entity_id=entity_id, **payload.model_dump()
+        )
         return res

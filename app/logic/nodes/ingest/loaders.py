@@ -1,4 +1,5 @@
 import logging
+
 from llama_index.core.readers.base import BaseReader
 
 from app.logic.nodes.ingest.base import BaseIngestNode, IngestState
@@ -10,7 +11,6 @@ class WebLoaderNode(BaseIngestNode):
     def __init__(self, reader: BaseReader):
         self.reader = reader
 
-
     async def execute(self, state: IngestState) -> dict:
         documents = []
         failed_urls = []
@@ -19,8 +19,8 @@ class WebLoaderNode(BaseIngestNode):
             try:
                 docs = await self.reader.aload_data(urls=[url])
                 for doc in docs:
-                    if 'url' not in doc.metadata:
-                        doc.metadata['url'] = url
+                    if "url" not in doc.metadata:
+                        doc.metadata["url"] = url
                 documents.extend(docs)
             except Exception as e:
                 logger.warning(f"Failed to load URL {url}: {e}")
@@ -32,4 +32,4 @@ class WebLoaderNode(BaseIngestNode):
         if not documents:
             logger.warning("No documents loaded from any of the provided URLs")
 
-        return {'documents': documents}
+        return {"documents": documents}

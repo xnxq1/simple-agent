@@ -28,7 +28,9 @@ class ForeignKeyViolationError(Exception):
     def __init__(self, entity_name: str, referenced_entity: str):
         self.entity_name = entity_name
         self.referenced_entity = referenced_entity
-        super().__init__(f"Cannot modify {entity_name}: referenced by {referenced_entity}")
+        super().__init__(
+            f"Cannot modify {entity_name}: referenced by {referenced_entity}"
+        )
 
 
 class DatabaseError(Exception):
@@ -41,8 +43,6 @@ class ValidationError(Exception):
     def __init__(self, field: str, message: str):
         self.field = field
         super().__init__(f"Validation error for {field}: {message}")
-
-
 
 
 def map_db_error(error: Exception, entity_name: str) -> Exception:
