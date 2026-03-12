@@ -5,7 +5,6 @@ from sqlalchemy import engine_from_config, pool
 
 from app.di import container
 from app.infra.config import Settings
-from app.infra.db.models import *
 from app.infra.db.utils import metadata
 
 # this is the Alembic Config object, which provides

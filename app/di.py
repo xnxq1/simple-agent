@@ -108,8 +108,8 @@ class ToolsProvider(Provider):
 
     @provide(scope=Scope.APP)
     def db_tools(self, topics_repo: TopicsRepo) -> DBToolsType:
-        rag = DBTools(topics_repo=topics_repo)
-        return [rag.get_available_topics]
+        tools = DBTools(topics_repo=topics_repo)
+        return [tools.get_available_topics]
 
     @provide(scope=Scope.APP)
     def tools(

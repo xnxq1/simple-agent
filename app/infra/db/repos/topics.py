@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.domain.topics import Topic
-from app.infra.db.models import topics
+from app.infra.db.models.topics import topics
 from app.infra.db.repos.base import EntityRepo
 
 
