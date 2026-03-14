@@ -20,7 +20,7 @@ class QuestionsResult(BaseModel):
     questions: list[Question]
 
 
-async def get_random_documents(container, limit: int = 100) -> list[str]:
+async def get_random_documents(container, limit: int = 25) -> list[str]:
     qdrant_repo = container.get(QdrantRepo)
     settings = container.get(Settings)
     records, _ = await qdrant_repo.client.scroll(
@@ -34,7 +34,7 @@ async def get_random_documents(container, limit: int = 100) -> list[str]:
 
 
 async def generate_positive_test_questions(
-    container, document: str, num_questions: int = 5
+    container, document: str, num_questions: int = 2
 ) -> QuestionsResult:
     llm_client = container.get(LLMWithoutToolsType)
     prompt = f"""
@@ -76,7 +76,7 @@ async def generate_positive_test_questions(
 
 
 async def main():
-    documents = await get_random_documents(container, limit=100)
+    documents = await get_random_documents(container, limit=25)
     dataset = []
     for i, doc in enumerate(documents):
         try:
@@ -93,7 +93,7 @@ async def main():
         except Exception as e:
             print(f"[{i + 1}/{len(documents)}] failed: {e}")
 
-    output_path = "scripts/dataset.json"
+    output_path = "scripts/datasets/json/positive_dataset.json"
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(dataset, f, ensure_ascii=False, indent=2)
     print(f"Saved {len(dataset)} entries to {output_path}")
