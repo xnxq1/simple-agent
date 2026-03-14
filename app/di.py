@@ -22,6 +22,7 @@ from app.logic.handlers.topic import (
     GetTopicHandler,
     UpdateTopicHandler,
 )
+from app.logic.nodes.evaluator import Evaluator
 from app.logic.nodes.ingest.base import IngestState
 from app.logic.nodes.ingest.chunking import SemanticChunkingNode
 from app.logic.nodes.ingest.embeddings import EmbeddingNode
@@ -147,9 +148,18 @@ class LLMProvider(Provider):
         return LLMNode(llm_client)
 
     @provide(scope=Scope.APP)
+    def evaluate_node(
+        self,
+        llm_client: LLMWithoutToolsType,
+        embeddings_model: HuggingFaceEmbeddings,
+) -> Evaluator:
+        return Evaluator(llm_client=llm_client, embed_model=embeddings_model)
+
+    @provide(scope=Scope.APP)
     def graph_agent(
         self,
         llm_node: LLMNode,
+        evaluator: Evaluator,
         tools: ToolsType,
     ) -> AgentGraph:
         graph = StateGraph(MessagesState)
@@ -157,17 +167,24 @@ class LLMProvider(Provider):
 
         tool_node = ToolNode(tools)
         graph.add_node("tools", tool_node.execute)
+        graph.add_node("evaluate", evaluator.execute)
 
         def should_continue(state: MessagesState) -> str:
             last_message = state.messages[-1]
             if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                 return "tools"
-            state.answer = last_message
-            return END
+            return "set_answer"
+
+        def set_answer(state: MessagesState) -> dict:
+            last_message = state.messages[-1]
+            return {"answer": last_message.content}
 
         graph.add_edge(START, "llm_call")
         graph.add_conditional_edges("llm_call", should_continue)
         graph.add_edge("tools", "llm_call")
+        graph.add_node("set_answer", set_answer)
+        graph.add_edge("set_answer", "evaluate")
+        graph.add_edge("evaluate", END)
 
         app = graph.compile()
         return app

@@ -1,22 +1,60 @@
 import abc
+import asyncio
+import dataclasses
 
 from langchain_core.embeddings import Embeddings
+from langchain_core.messages import HumanMessage
 
+from app.domain.prompts import GroundnessResult, evaluate_groundness_user_prompt, evaluate_groundness_system_prompt, \
+    ContextRelevanceResult, ContextRelevance
 from app.infra.llm.client import LLMClient
 from app.logic.nodes.base import BaseLLMNode
 from app.logic.nodes.state import MessagesState
-
+import numpy as np
 
 class Evaluator(BaseLLMNode):
     def __init__(self, llm_client: LLMClient, embed_model: Embeddings):
         self.llm_client = llm_client
         self.embed_model = embed_model
+        self.relevance_threshold = 0.6
 
-    @abc.abstractmethod
-    async def execute(self, state: MessagesState) -> MessagesState: ...
+    async def execute(self, state: MessagesState) -> dict:
+        if not state.retrieve_context:
+            return {}
+        context_relevance_result, groundness_result = await asyncio.gather(
+            self.evaluate_context_relevance(state.question, state.retrieve_context),
+            self.evaluate_faithfulness(context=state.retrieve_context, answer=state.answer)
+        )
+        return {
+            'context_relevance_result': context_relevance_result,
+            'groundness_result': groundness_result,
+        }
 
-    async def evaluate_context_relevance(self): ...
+    async def evaluate_context_relevance(self, query: str, docs: list[str]) -> ContextRelevanceResult:
+        embeddings = await self.embed_model.aembed_documents([query] + docs)
+        query_embed = embeddings[0]
+        docs_embed = embeddings[1:]
+        result = []
+        for doc, doc_embed in zip(docs, docs_embed):
+            score = self.cosine_similarity(query_embed, doc_embed)
+            result.append(ContextRelevance(query=query, document=doc, score=score))
+
+        relevant_count = sum(1 for r in result if r.score >= self.relevance_threshold)
+        return ContextRelevanceResult(context_relevance=result, context_score=relevant_count / len(docs))
+
+    @staticmethod
+    def cosine_similarity(a, b):
+        a = np.array(a)
+        b = np.array(b)
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
     async def evaluate_answer_relevance(self): ...
 
-    async def evaluate_groundness(self): ...
+    async def evaluate_faithfulness(self, context: list[str], answer: str) -> GroundnessResult:
+        user_prompt = evaluate_groundness_user_prompt.format(context=context, answer=answer)
+        result: GroundnessResult = await self.llm_client.completions_create(
+            system_prompt=evaluate_groundness_system_prompt,
+            messages=[HumanMessage(content=user_prompt)],
+            response_class=GroundnessResult,
+        )
+        return result

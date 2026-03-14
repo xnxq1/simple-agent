@@ -27,20 +27,17 @@ class ToolNode:
         )
 
         tool_messages = []
+        new_context: list[str] = []
         for tool_call, result in zip(tool_calls, results):
             if isinstance(result, Exception):
                 logger.error("Tool %s failed: %s", tool_call["name"], result)
                 content = f"Error: {result}"
             else:
                 logger.debug("Tool %s returned: %s", tool_call["name"], result)
-                print(tool_call["name"], RAGTools.search_docs.__name__)
-                print('\n\n\n\n\n\n')
                 if tool_call["name"] == RAGTools.search_docs.__name__:
-                    state.retrieve_context.extend(
+                    new_context.extend(
                         [point.payload["text"] for point in result.points]
                     )
-                    print(state.retrieve_context)
-                    print('\n\n\n\n\n\n')
                 content = json.dumps(result, default=str)
 
             tool_messages.append(
@@ -51,7 +48,7 @@ class ToolNode:
                 )
             )
 
-        return {"messages": tool_messages}
+        return {"messages": tool_messages, "retrieve_context": new_context}
 
     async def _call_tool(self, tool_call: dict):
         name = tool_call["name"]

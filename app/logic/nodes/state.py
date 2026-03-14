@@ -1,7 +1,11 @@
+import operator
+from dataclasses import dataclass
 from typing import Annotated
 
 from langgraph.graph import add_messages
 from pydantic import BaseModel, Field
+
+from app.domain.prompts import GroundnessResult, ContextRelevanceResult
 
 
 class MessagesState(BaseModel):
@@ -9,4 +13,6 @@ class MessagesState(BaseModel):
     llm_calls: int = 0
     question: str
     answer: str | None = None
-    retrieve_context: list[str] = Field(default_factory=list)
+    retrieve_context: Annotated[list[str], operator.add] = []
+    context_relevance_result: ContextRelevanceResult | None = None
+    groundness_result: GroundnessResult | None = None
