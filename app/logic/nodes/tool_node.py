@@ -35,9 +35,7 @@ class ToolNode:
             else:
                 logger.debug("Tool %s returned: %s", tool_call["name"], result)
                 if tool_call["name"] == RAGTools.search_docs.__name__:
-                    new_context.extend(
-                        [point.payload["text"] for point in result.points]
-                    )
+                    new_context.extend(result)
                 content = json.dumps(result, default=str)
 
             tool_messages.append(

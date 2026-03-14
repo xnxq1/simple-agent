@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from llama_index.readers.web import TrafilaturaWebReader
 from qdrant_client import AsyncQdrantClient
+from sentence_transformers import CrossEncoder
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.application.agent.router import AgentRouter
@@ -109,7 +110,12 @@ class ToolsProvider(Provider):
         settings: Settings,
     ) -> RAGToolsType:
         rag = RAGTools(
-            qdrant_repo=qdrant_repo, embed_model=embeddings_model, settings=settings
+            qdrant_repo=qdrant_repo,
+            embed_model=embeddings_model,
+            settings=settings,
+            cross_encoder_model=CrossEncoder(
+                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+            ),
         )
         return [rag.search_docs]
 
@@ -196,7 +202,6 @@ class LLMProvider(Provider):
 
 
 class ServicesProvider(Provider):
-
     @provide(scope=Scope.APP)
     def web_loader_service(self) -> WebLoaderService:
         return WebLoaderService(TrafilaturaWebReader())

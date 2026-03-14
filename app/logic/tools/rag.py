@@ -1,6 +1,8 @@
+import asyncio
+
 from langchain_core.embeddings import Embeddings
 from qdrant_client import models
-from qdrant_client.http.models import QueryResponse
+from sentence_transformers import CrossEncoder
 
 from app.infra.config import Settings
 from app.infra.qdrant.repos.repos import QdrantRepo
@@ -12,14 +14,16 @@ class RAGTools:
         qdrant_repo: QdrantRepo,
         embed_model: Embeddings,
         settings: Settings,
+        cross_encoder_model: CrossEncoder,
     ):
         self.qdrant_repo = qdrant_repo
         self.embed_model = embed_model
         self.settings = settings
+        self.cross_encoder_model = cross_encoder_model
 
     async def search_docs(
         self, text: str, top_k: int, topics: list[str] | None = None
-    ) -> QueryResponse:
+    ) -> list[str]:
         """Search for documents similar to the given query text.
 
         Performs semantic search by embedding the query text and finding the most
@@ -55,9 +59,22 @@ class RAGTools:
                     models.IsEmptyCondition(is_empty=models.PayloadField(key="topic")),
                 ]
             )
-        return await self.qdrant_repo.search(
+        result = await self.qdrant_repo.search(
             collection_name=self.settings.qdrant_collection,
             vector=query_embed,
-            limit=top_k,
+            limit=top_k * 5,
             query_filter=query_filter,
         )
+        return await self.rerank(
+            documents=[p.payload["text"] for p in result.points], query=text, limit=top_k
+        )
+
+    async def rerank(
+        self, documents: list[str], query: str, limit: int = 5
+    ) -> list[str]:
+        input = [[query, d] for d in documents]
+        scores = await asyncio.to_thread(
+            self.cross_encoder_model.predict, sentences=input
+        )
+        ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
+        return [doc for doc, _ in ranked[:limit]]
