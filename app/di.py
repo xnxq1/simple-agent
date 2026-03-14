@@ -32,6 +32,12 @@ from app.logic.nodes.ingest.qdrant import QdrantIngestNode
 from app.logic.nodes.llm_node import LLMNode
 from app.logic.nodes.state import MessagesState
 from app.logic.nodes.tool_node import ToolNode
+from app.logic.services.chunking import ChunkingService
+from app.logic.services.embedding import EmbeddingService
+from app.logic.services.evaluation import EvaluationService
+from app.logic.services.metadata_filling import MetadataFillingService
+from app.logic.services.vector_store import VectorStoreService
+from app.logic.services.web_loader import WebLoaderService
 from app.logic.tools.db import DBTools
 from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
@@ -150,10 +156,9 @@ class LLMProvider(Provider):
     @provide(scope=Scope.APP)
     def evaluate_node(
         self,
-        llm_client: LLMWithoutToolsType,
-        embeddings_model: HuggingFaceEmbeddings,
+        service: EvaluationService,
     ) -> Evaluator:
-        return Evaluator(llm_client=llm_client, embed_model=embeddings_model)
+        return Evaluator(service)
 
     @provide(scope=Scope.APP)
     def graph_agent(
@@ -190,6 +195,49 @@ class LLMProvider(Provider):
         return app
 
 
+class ServicesProvider(Provider):
+
+    @provide(scope=Scope.APP)
+    def web_loader_service(self) -> WebLoaderService:
+        return WebLoaderService(TrafilaturaWebReader())
+
+    @provide(scope=Scope.APP)
+    def chunking_service(self) -> ChunkingService:
+        return ChunkingService()
+
+    @provide(scope=Scope.APP)
+    def embedding_service(
+        self, embeddings_model: HuggingFaceEmbeddings
+    ) -> EmbeddingService:
+        return EmbeddingService(embeddings_model)
+
+    @provide(scope=Scope.APP)
+    def vector_store_service(
+        self, qdrant_repo: QdrantRepo, settings: Settings
+    ) -> VectorStoreService:
+        return VectorStoreService(qdrant_repo=qdrant_repo, settings=settings)
+
+    @provide(scope=Scope.APP)
+    def metadata_filling_service(
+        self,
+        topics_repo: TopicsRepo,
+        llm_client_no_tools: LLMWithoutToolsType,
+    ) -> MetadataFillingService:
+        return MetadataFillingService(
+            topics_repo=topics_repo, llm_client=llm_client_no_tools
+        )
+
+    @provide(scope=Scope.APP)
+    def evaluation_service(
+        self,
+        llm_client_no_tools: LLMWithoutToolsType,
+        embeddings_model: HuggingFaceEmbeddings,
+    ) -> EvaluationService:
+        return EvaluationService(
+            llm_client=llm_client_no_tools, embed_model=embeddings_model
+        )
+
+
 class IngestProvider(Provider):
     @provide(scope=Scope.APP)
     def qdrant_repo(self, settings: Settings) -> QdrantRepo:
@@ -202,32 +250,27 @@ class IngestProvider(Provider):
         )
 
     @provide(scope=Scope.APP)
-    def web_loader_node(self) -> WebLoaderNode:
-        return WebLoaderNode(TrafilaturaWebReader())
+    def web_loader_node(self, service: WebLoaderService) -> WebLoaderNode:
+        return WebLoaderNode(service)
 
     @provide(scope=Scope.APP)
-    def chunking_node(self) -> SemanticChunkingNode:
-        return SemanticChunkingNode()
+    def chunking_node(self, service: ChunkingService) -> SemanticChunkingNode:
+        return SemanticChunkingNode(service)
 
     @provide(scope=Scope.APP)
-    def embedding_node(self, embeddings_model: HuggingFaceEmbeddings) -> EmbeddingNode:
-        return EmbeddingNode(embeddings_model)
+    def embedding_node(self, service: EmbeddingService) -> EmbeddingNode:
+        return EmbeddingNode(service)
 
     @provide(scope=Scope.APP)
-    def qdrant_ingest_node(
-        self, qdrant_repo: QdrantRepo, settings: Settings
-    ) -> QdrantIngestNode:
-        return QdrantIngestNode(qdrant_repo=qdrant_repo, settings=settings)
+    def qdrant_ingest_node(self, service: VectorStoreService) -> QdrantIngestNode:
+        return QdrantIngestNode(service)
 
     @provide(scope=Scope.APP)
     def metadata_filling_node(
         self,
-        topics_repo: TopicsRepo,
-        llm_client_no_tools: LLMWithoutToolsType,
+        service: MetadataFillingService,
     ) -> MetadataFillingNode:
-        return MetadataFillingNode(
-            topics_repo=topics_repo, llm_client=llm_client_no_tools
-        )
+        return MetadataFillingNode(service)
 
     @provide(scope=Scope.APP)
     def ingest_graph(
@@ -259,6 +302,7 @@ providers = (
     AppProvider(),
     DBProvider(),
     EmbeddingsProvider(),
+    ServicesProvider(),
     LLMProvider(),
     IngestProvider(),
     ToolsProvider(),
