@@ -14,6 +14,7 @@ services:
       - postgres
     volumes:
       - ./:/app
+      - app_venv:/app/.venv
       - hf_cache:/root/.cache/huggingface
     command: ["uv", "run", "python", "manage.py", "start-api"]
     networks:
@@ -52,6 +53,7 @@ services:
       - simple-network
 
 volumes:
+  app_venv:
   qdrant_data:
   hf_cache:
   postgres_data:

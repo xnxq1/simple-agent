@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class Claim(BaseModel):
     claim: str
     supported: bool
@@ -16,16 +17,20 @@ class ContextRelevance(BaseModel):
     document: str
     score: float
 
+
 class ContextRelevanceResult(BaseModel):
     context_relevance: list[ContextRelevance]
     context_score: float
 
+
 class LLMAnswerRelevance(BaseModel):
     questions: list[str]
+
 
 class AnswerRelevanceResult(BaseModel):
     questions: list[str]
     score: float
+
 
 evaluate_groundness_user_prompt = """
 Контекст:

@@ -152,7 +152,7 @@ class LLMProvider(Provider):
         self,
         llm_client: LLMWithoutToolsType,
         embeddings_model: HuggingFaceEmbeddings,
-) -> Evaluator:
+    ) -> Evaluator:
         return Evaluator(llm_client=llm_client, embed_model=embeddings_model)
 
     @provide(scope=Scope.APP)

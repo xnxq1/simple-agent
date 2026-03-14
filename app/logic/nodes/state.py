@@ -1,11 +1,14 @@
 import operator
-from dataclasses import dataclass
 from typing import Annotated
 
 from langgraph.graph import add_messages
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from app.domain.prompts import GroundnessResult, ContextRelevanceResult, AnswerRelevanceResult
+from app.domain.prompts import (
+    AnswerRelevanceResult,
+    ContextRelevanceResult,
+    GroundnessResult,
+)
 
 
 class MessagesState(BaseModel):
