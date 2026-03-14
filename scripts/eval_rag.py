@@ -10,17 +10,16 @@ Usage:
     python scripts/eval_rag.py --min-context-score 0.6 --min-faithfulness 0.7 --junit-xml reports/eval.xml
 """
 
+import argparse
 import asyncio
 import json
-import argparse
 import sys
 import xml.etree.ElementTree as ET
-from pathlib import Path
-from dataclasses import dataclass, asdict
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import httpx
-
 
 ABSTAIN_MARKERS = [
     "информация не найдена",
@@ -47,13 +46,11 @@ class QuestionResult:
     error: str | None = None
 
 
-async def query_agent(
-    client: httpx.AsyncClient, base_url: str, question: str
-) -> dict:
+async def query_agent(client: httpx.AsyncClient, base_url: str, question: str) -> dict:
     """Send a question to the agent and get the response."""
     resp = await client.post(
         f"{base_url}/agent/query",
-        params={'payload': question},
+        params={"payload": question},
         headers={"Content-Type": "text/plain"},
         timeout=60.0,
     )
@@ -61,7 +58,9 @@ async def query_agent(
     return resp.json()
 
 
-def extract_metrics(response: dict) -> tuple[float | None, float | None, float | None, str | None]:
+def extract_metrics(
+    response: dict,
+) -> tuple[float | None, float | None, float | None, str | None]:
     """Extract evaluation metrics from agent response."""
     ctx_score = None
     faith_score = None
@@ -186,14 +185,22 @@ def compute_stats(results: list[QuestionResult], is_positive: bool) -> dict:
                 r.faithfulness_score for r in items if r.faithfulness_score is not None
             ]
             ans_scores = [
-                r.answer_relevance_score for r in items if r.answer_relevance_score is not None
+                r.answer_relevance_score
+                for r in items
+                if r.answer_relevance_score is not None
             ]
 
             stats[difficulty] = {
                 "n": n,
-                "context_score": sum(ctx_scores) / len(ctx_scores) if ctx_scores else None,
-                "faithfulness_score": sum(faith_scores) / len(faith_scores) if faith_scores else None,
-                "answer_relevance_score": sum(ans_scores) / len(ans_scores) if ans_scores else None,
+                "context_score": sum(ctx_scores) / len(ctx_scores)
+                if ctx_scores
+                else None,
+                "faithfulness_score": sum(faith_scores) / len(faith_scores)
+                if faith_scores
+                else None,
+                "answer_relevance_score": sum(ans_scores) / len(ans_scores)
+                if ans_scores
+                else None,
             }
         else:
             abstain_count = sum(1 for r in items if r.abstained)
@@ -202,7 +209,9 @@ def compute_stats(results: list[QuestionResult], is_positive: bool) -> dict:
             stats[difficulty] = {
                 "n": n,
                 "abstain_rate": abstain_count / n if n > 0 else 0,
-                "context_score": sum(ctx_scores) / len(ctx_scores) if ctx_scores else None,
+                "context_score": sum(ctx_scores) / len(ctx_scores)
+                if ctx_scores
+                else None,
             }
 
     return stats
@@ -235,21 +244,27 @@ def print_summary_positive(stats: dict, total: int):
         all_faith.append(faith) if faith > 0 else None
         all_ans.append(ans) if ans > 0 else None
 
-        print(f"{difficulty:<12} │ {ctx:>13.2f} │ {faith:>12.2f} │ {ans:>10.2f} │ {n:>3}")
+        print(
+            f"{difficulty:<12} │ {ctx:>13.2f} │ {faith:>12.2f} │ {ans:>10.2f} │ {n:>3}"
+        )
 
     print("-" * 65)
     overall_ctx = sum(all_ctx) / len(all_ctx) if all_ctx else 0
     overall_faith = sum(all_faith) / len(all_faith) if all_faith else 0
     overall_ans = sum(all_ans) / len(all_ans) if all_ans else 0
 
-    print(f"{'OVERALL':<12} │ {overall_ctx:>13.2f} │ {overall_faith:>12.2f} │ {overall_ans:>10.2f} │ {total:>3}")
+    print(
+        f"{'OVERALL':<12} │ {overall_ctx:>13.2f} │ {overall_faith:>12.2f} │ {overall_ans:>10.2f} │ {total:>3}"
+    )
 
 
 def print_summary_negative(stats: dict, total: int):
     """Print summary table for negative dataset."""
     print("\n=== NEGATIVE DATASET ===\n")
 
-    print(f"{'difficulty':<12} │ {'abstain_rate':>12} │ {'context_score':>13} │ {'n':>3}")
+    print(
+        f"{'difficulty':<12} │ {'abstain_rate':>12} │ {'context_score':>13} │ {'n':>3}"
+    )
     print("-" * 55)
 
     all_abstain = []
@@ -273,7 +288,9 @@ def print_summary_negative(stats: dict, total: int):
     overall_abstain = sum(all_abstain) / len(all_abstain) if all_abstain else 0
     overall_ctx = sum(all_ctx) / len(all_ctx) if all_ctx else 0
 
-    print(f"{'OVERALL':<12} │ {overall_abstain:>11.0%} │ {overall_ctx:>13.2f} │ {total:>3}")
+    print(
+        f"{'OVERALL':<12} │ {overall_abstain:>11.0%} │ {overall_ctx:>13.2f} │ {total:>3}"
+    )
 
 
 def write_junit_xml(
@@ -437,24 +454,40 @@ async def main():
         # Evaluate positive dataset
         positive_results = []
         if positive_questions:
-            print(f"\nEvaluating positive dataset ({len(positive_questions)} questions)...")
+            print(
+                f"\nEvaluating positive dataset ({len(positive_questions)} questions)..."
+            )
             positive_results = await evaluate_dataset(
-                client, base_url, positive_questions, is_positive=True, concurrency=concurrency
+                client,
+                base_url,
+                positive_questions,
+                is_positive=True,
+                concurrency=concurrency,
             )
             all_results.extend(positive_results)
             errors = sum(1 for r in positive_results if r.error)
-            print(f"  Completed: {len(positive_results) - errors}/{len(positive_results)}")
+            print(
+                f"  Completed: {len(positive_results) - errors}/{len(positive_results)}"
+            )
 
         # Evaluate negative dataset
         negative_results = []
         if negative_questions:
-            print(f"\nEvaluating negative dataset ({len(negative_questions)} questions)...")
+            print(
+                f"\nEvaluating negative dataset ({len(negative_questions)} questions)..."
+            )
             negative_results = await evaluate_dataset(
-                client, base_url, negative_questions, is_positive=False, concurrency=concurrency
+                client,
+                base_url,
+                negative_questions,
+                is_positive=False,
+                concurrency=concurrency,
             )
             all_results.extend(negative_results)
             errors = sum(1 for r in negative_results if r.error)
-            print(f"  Completed: {len(negative_results) - errors}/{len(negative_results)}")
+            print(
+                f"  Completed: {len(negative_results) - errors}/{len(negative_results)}"
+            )
 
         # Compute and print statistics
         positive_stats = {}
@@ -494,7 +527,9 @@ async def main():
             for d in negative_stats.values():
                 if d.get("abstain_rate") is not None:
                     abstain_rates.append(d["abstain_rate"])
-            overall_abstain = sum(abstain_rates) / len(abstain_rates) if abstain_rates else 0
+            overall_abstain = (
+                sum(abstain_rates) / len(abstain_rates) if abstain_rates else 0
+            )
 
         # Check thresholds
         violations = []
@@ -519,13 +554,43 @@ async def main():
         if args.output:
             output_path = Path(args.output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Build overall stats
+            overall_stats = {
+                "positive": positive_stats,
+                "negative": negative_stats,
+            }
+
+            # Add OVERALL key to positive stats
+            if positive_stats:
+                overall_stats["positive"]["OVERALL"] = {
+                    "context_score": overall_ctx,
+                    "faithfulness_score": overall_faith,
+                    "answer_relevance_score": overall_ans,
+                    "n": len(positive_results),
+                }
+
+            # Add OVERALL key to negative stats
+            if negative_stats:
+                overall_stats["negative"]["OVERALL"] = {
+                    "abstain_rate": overall_abstain,
+                    "context_score": sum(
+                        d.get("context_score", 0)
+                        for d in negative_stats.values()
+                        if d.get("context_score")
+                    ) / len([d for d in negative_stats.values() if d.get("context_score")])
+                    if any(d.get("context_score") for d in negative_stats.values())
+                    else None,
+                    "n": len(negative_results),
+                }
+
+            output_data = {
+                "questions": [asdict(r) for r in all_results],
+                "stats": overall_stats,
+            }
+
             with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    [asdict(r) for r in all_results],
-                    f,
-                    ensure_ascii=False,
-                    indent=2,
-                )
+                json.dump(output_data, f, ensure_ascii=False, indent=2)
             print(f"\nRaw results saved to {output_path}")
 
         # Write JUnit XML if requested
