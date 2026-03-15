@@ -66,7 +66,9 @@ class RAGTools:
             query_filter=query_filter,
         )
         return await self.rerank(
-            documents=[p.payload["text"] for p in result.points], query=text, limit=top_k
+            documents=[p.payload["text"] for p in result.points],
+            query=text,
+            limit=top_k,
         )
 
     async def rerank(

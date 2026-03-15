@@ -578,7 +578,10 @@ async def main():
                         d.get("context_score", 0)
                         for d in negative_stats.values()
                         if d.get("context_score")
-                    ) / len([d for d in negative_stats.values() if d.get("context_score")])
+                    )
+                    / len(
+                        [d for d in negative_stats.values() if d.get("context_score")]
+                    )
                     if any(d.get("context_score") for d in negative_stats.values())
                     else None,
                     "n": len(negative_results),
