@@ -14,8 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from app.application.agent.router import AgentRouter
 from app.application.ingest.router import IngestRouter
 from app.application.topics.router import TopicRouter
+from app.application.users.router import UserRouter
 from app.infra.config import Settings
 from app.infra.db.repos.topics import TopicsRepo
+from app.infra.db.repos.users import UsersRepo
 from app.infra.llm.client import LLMClient
 from app.infra.qdrant.repos.repos import QdrantRepo
 from app.logic.handlers.topic import (
@@ -23,6 +25,7 @@ from app.logic.handlers.topic import (
     GetTopicHandler,
     UpdateTopicHandler,
 )
+from app.logic.handlers.user import CreateUserHandler, GetUsersHandler
 from app.logic.nodes.evaluator import Evaluator
 from app.logic.nodes.ingest.base import IngestState
 from app.logic.nodes.ingest.chunking import SemanticChunkingNode
@@ -63,16 +66,21 @@ class AppProvider(Provider):
         agent_graph: AgentGraph,
         ingest_graph: IngestGraph,
         topics_repo: TopicsRepo,
+        users_repo: UsersRepo,
     ) -> AppBuilder:
         topic_router = TopicRouter(
             create_topic_handler=CreateTopicHandler(topic_repo=topics_repo),
             get_topic_handler=GetTopicHandler(topic_repo=topics_repo),
             update_topic_handler=UpdateTopicHandler(topic_repo=topics_repo),
         )
+        user_router = UserRouter(
+            create_user_handler=CreateUserHandler(users_repo=users_repo),
+            get_users_handler=GetUsersHandler(users_repo=users_repo),
+        )
         agent_router = AgentRouter(graph_agent=agent_graph)
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
         return AppBuilder(
-            routers=[agent_router.router, ingest_router.router, topic_router.router],
+            routers=[agent_router.router, ingest_router.router, topic_router.router, user_router.router],
             settings=settings,
         )
 
@@ -93,6 +101,10 @@ class DBProvider(Provider):
     @provide(scope=Scope.APP)
     def topics_repo(self, engine: AsyncEngine) -> TopicsRepo:
         return TopicsRepo(engine=engine)
+
+    @provide(scope=Scope.APP)
+    def users_repo(self, engine: AsyncEngine) -> UsersRepo:
+        return UsersRepo(engine=engine)
 
 
 class EmbeddingsProvider(Provider):
