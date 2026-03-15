@@ -100,6 +100,10 @@ class EmbeddingsProvider(Provider):
     def embeddings_model(self) -> HuggingFaceEmbeddings:
         return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
+    @provide(scope=Scope.APP)
+    def cross_encoder_model(self) -> CrossEncoder:
+        return CrossEncoder("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
+
 
 class ToolsProvider(Provider):
     @provide(scope=Scope.APP)
@@ -108,14 +112,13 @@ class ToolsProvider(Provider):
         qdrant_repo: QdrantRepo,
         embeddings_model: HuggingFaceEmbeddings,
         settings: Settings,
+        cross_encoder_model: CrossEncoder,
     ) -> RAGToolsType:
         rag = RAGTools(
             qdrant_repo=qdrant_repo,
             embed_model=embeddings_model,
             settings=settings,
-            cross_encoder_model=CrossEncoder(
-                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-            ),
+            cross_encoder_model=cross_encoder_model,
         )
         return [rag.search_docs]
 
@@ -237,9 +240,12 @@ class ServicesProvider(Provider):
         self,
         llm_client_no_tools: LLMWithoutToolsType,
         embeddings_model: HuggingFaceEmbeddings,
+        cross_encoder_model: CrossEncoder,
     ) -> EvaluationService:
         return EvaluationService(
-            llm_client=llm_client_no_tools, embed_model=embeddings_model
+            llm_client=llm_client_no_tools,
+            embed_model=embeddings_model,
+            cross_encoder_model=cross_encoder_model,
         )
 
 

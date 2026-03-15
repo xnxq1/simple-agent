@@ -57,7 +57,7 @@ class QdrantRepo(QdrantInterface):
             limit=limit,
             using="dense",
             query_filter=query_filter,
-            # score_threshold=self.settings.qdrant_score_threshold,
+            score_threshold=self.settings.qdrant_score_threshold,
         )
 
     async def hybrid_search(

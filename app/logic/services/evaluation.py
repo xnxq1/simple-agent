@@ -6,6 +6,7 @@ import logging
 import numpy as np
 from langchain_core.embeddings import Embeddings
 from langchain_core.messages import HumanMessage
+from sentence_transformers import CrossEncoder
 
 from app.domain.prompts import (
     AnswerRelevanceResult,
@@ -26,10 +27,15 @@ logger = logging.getLogger(__name__)
 class EvaluationService:
     """Evaluates answer quality: context relevance, faithfulness, and answer relevance."""
 
-    def __init__(self, llm_client: LLMClient, embed_model: Embeddings):
+    def __init__(
+        self,
+        llm_client: LLMClient,
+        embed_model: Embeddings,
+        cross_encoder_model: CrossEncoder,
+    ):
         self.llm_client = llm_client
         self.embed_model = embed_model
-        self.relevance_threshold = 0.6
+        self.cross_encoder_model = cross_encoder_model
 
     async def evaluate(
         self, question: str, answer: str, retrieve_context: list[str]
@@ -59,7 +65,7 @@ class EvaluationService:
     async def evaluate_context_relevance(
         self, query: str, docs: list[str]
     ) -> ContextRelevanceResult:
-        """Score relevance of retrieved documents to the query.
+        """Score relevance of retrieved documents using CrossEncoder.
 
         Args:
             query: User question
@@ -68,17 +74,29 @@ class EvaluationService:
         Returns:
             ContextRelevanceResult with per-doc scores and overall score
         """
-        embeddings = await self.embed_model.aembed_documents([query] + docs)
-        query_embed = embeddings[0]
-        docs_embed = embeddings[1:]
-        result = []
-        for doc, doc_embed in zip(docs, docs_embed):
-            score = self.cosine_similarity(query_embed, doc_embed)
-            result.append(ContextRelevance(query=query, document=doc, score=score))
+        if not docs:
+            return ContextRelevanceResult(context_relevance=[], context_score=0.0)
 
-        relevant_count = sum(1 for r in result if r.score >= self.relevance_threshold)
+        # Prepare query-document pairs for CrossEncoder
+        pairs = [[query, doc] for doc in docs]
+
+        # Run CrossEncoder.predict in thread pool (blocking call)
+        raw_scores = await asyncio.to_thread(
+            self.cross_encoder_model.predict, sentences=pairs
+        )
+
+        # Normalize logits to [0, 1] using sigmoid
+        scores = [float(1 / (1 + np.exp(-s))) for s in raw_scores]
+
+        # Build per-document results
+        result = [
+            ContextRelevance(query=query, document=doc, score=score)
+            for doc, score in zip(docs, scores)
+        ]
+
+        context_score = round(max(scores), 4) if scores else 0.0
         return ContextRelevanceResult(
-            context_relevance=result, context_score=relevant_count / len(docs)
+            context_relevance=result, context_score=context_score
         )
 
     @staticmethod
