@@ -3,6 +3,7 @@ from typing import NewType
 from dishka import Provider, Scope, make_container, provide
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -45,6 +46,7 @@ from app.logic.services.web_loader import WebLoaderService
 from app.logic.tools.db import DBTools
 from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
+from app.infra.db.repos.user_threads import UserThreadsRepo
 
 AgentGraph = NewType("AgentGraph", CompiledStateGraph)
 IngestGraph = NewType("IngestGraph", CompiledStateGraph)
@@ -67,6 +69,7 @@ class AppProvider(Provider):
         ingest_graph: IngestGraph,
         topics_repo: TopicsRepo,
         users_repo: UsersRepo,
+        user_threads_repo: UserThreadsRepo,
     ) -> AppBuilder:
         topic_router = TopicRouter(
             create_topic_handler=CreateTopicHandler(topic_repo=topics_repo),
@@ -77,7 +80,7 @@ class AppProvider(Provider):
             create_user_handler=CreateUserHandler(users_repo=users_repo),
             get_users_handler=GetUsersHandler(users_repo=users_repo),
         )
-        agent_router = AgentRouter(graph_agent=agent_graph)
+        agent_router = AgentRouter(graph_agent=agent_graph, user_threads_repo=user_threads_repo)
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
         return AppBuilder(
             routers=[agent_router.router, ingest_router.router, topic_router.router, user_router.router],
@@ -105,6 +108,14 @@ class DBProvider(Provider):
     @provide(scope=Scope.APP)
     def users_repo(self, engine: AsyncEngine) -> UsersRepo:
         return UsersRepo(engine=engine)
+
+    @provide(scope=Scope.APP)
+    def postgres_checkpointer(self, settings: Settings) -> AsyncPostgresSaver:
+        return AsyncPostgresSaver.from_conn_string(settings.db_url)
+
+    @provide(scope=Scope.APP)
+    def user_threads_repo(self, engine: AsyncEngine) -> UserThreadsRepo:
+        return UserThreadsRepo(engine=engine)
 
 
 class EmbeddingsProvider(Provider):
@@ -182,11 +193,12 @@ class LLMProvider(Provider):
         return Evaluator(service)
 
     @provide(scope=Scope.APP)
-    def graph_agent(
+    async def graph_agent(
         self,
         llm_node: LLMNode,
         evaluator: Evaluator,
         tools: ToolsType,
+        checkpointer: AsyncPostgresSaver,
     ) -> AgentGraph:
         graph = StateGraph(MessagesState)
         graph.add_node("llm_call", llm_node.execute)
@@ -212,7 +224,7 @@ class LLMProvider(Provider):
         graph.add_edge("set_answer", "evaluate")
         graph.add_edge("evaluate", END)
 
-        app = graph.compile()
+        app = graph.compile(checkpointer=checkpointer)
         return app
 
 
