@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.application.agent.router import AgentRouter
 from app.application.ingest.router import IngestRouter
+from app.application.threads.router import ThreadRouter
 from app.application.topics.router import TopicRouter
 from app.application.users.router import UserRouter
 from app.infra.config import Settings
@@ -26,6 +27,8 @@ from app.logic.handlers.topic import (
     GetTopicHandler,
     UpdateTopicHandler,
 )
+from app.logic.handlers.thread import CreateThreadHandler, GetThreadHistoryHandler
+from app.logic.services.thread import ThreadService
 from app.logic.handlers.user import CreateUserHandler, GetUsersHandler
 from app.logic.nodes.evaluator import Evaluator
 from app.logic.nodes.ingest.base import IngestState
@@ -70,6 +73,7 @@ class AppProvider(Provider):
         topics_repo: TopicsRepo,
         users_repo: UsersRepo,
         user_threads_repo: UserThreadsRepo,
+        checkpointer: AsyncPostgresSaver,
     ) -> AppBuilder:
         topic_router = TopicRouter(
             create_topic_handler=CreateTopicHandler(topic_repo=topics_repo),
@@ -80,10 +84,24 @@ class AppProvider(Provider):
             create_user_handler=CreateUserHandler(users_repo=users_repo),
             get_users_handler=GetUsersHandler(users_repo=users_repo),
         )
+        thread_service = ThreadService(
+            user_threads_repo=user_threads_repo,
+            checkpointer=checkpointer,
+        )
+        thread_router = ThreadRouter(
+            create_thread_handler=CreateThreadHandler(thread_service=thread_service),
+            get_thread_history_handler=GetThreadHistoryHandler(thread_service=thread_service),
+        )
         agent_router = AgentRouter(graph_agent=agent_graph, user_threads_repo=user_threads_repo)
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
         return AppBuilder(
-            routers=[agent_router.router, ingest_router.router, topic_router.router, user_router.router],
+            routers=[
+                agent_router.router,
+                ingest_router.router,
+                thread_router.router,
+                topic_router.router,
+                user_router.router,
+            ],
             settings=settings,
         )
 
