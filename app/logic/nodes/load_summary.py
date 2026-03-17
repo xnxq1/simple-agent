@@ -31,7 +31,10 @@ class LoadMemoryNode:
         result["old_messages"] = [
             msg
             for trace in unsummarized
-            for msg in [HumanMessage(content=trace.question), AIMessage(content=trace.answer)]
+            for msg in [
+                HumanMessage(content=trace.question),
+                AIMessage(content=trace.answer),
+            ]
         ]
 
         return result

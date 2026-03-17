@@ -24,7 +24,9 @@ def start_api():
     async def run():
         async with container:
             app_builder = await container.get(AppBuilder)
-            config = uvicorn.Config(app_builder.create_app(), host="0.0.0.0", port=8000, reload=False)
+            config = uvicorn.Config(
+                app_builder.create_app(), host="0.0.0.0", port=8000, reload=False
+            )
             server = uvicorn.Server(config)
             await server.serve()
 

@@ -1,8 +1,7 @@
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import asc, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy import asc
 
 from app.domain.query_traces import QueryTrace
 from app.infra.db.models.query_traces import query_traces
