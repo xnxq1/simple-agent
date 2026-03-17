@@ -12,7 +12,8 @@ from app.domain.prompts import (
 
 
 class MessagesState(BaseModel):
-    messages: Annotated[list, add_messages]
+    old_messages: list | None = None
+    new_messages: Annotated[list, add_messages]
     llm_calls: int = 0
     question: str
     answer: str | None = None

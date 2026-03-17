@@ -16,7 +16,7 @@ class SaveEpisodeNode:
 
         tools_used: list[str] = []
         topics: list[str] = []
-        for msg in state.messages:
+        for msg in state.new_messages:
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tc in msg.tool_calls:
                     tools_used.append(tc["name"])
@@ -24,7 +24,7 @@ class SaveEpisodeNode:
                         msg_topics = (tc.get("args") or {}).get("topics") or []
                         topics.extend(msg_topics)
 
-        human_msgs = [m for m in state.messages if isinstance(m, HumanMessage)]
+        human_msgs = [m for m in state.new_messages if isinstance(m, HumanMessage)]
         message_id = human_msgs[-1].id if human_msgs else ""
 
         await self.query_traces_repo.insert(

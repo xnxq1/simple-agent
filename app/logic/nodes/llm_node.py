@@ -10,12 +10,11 @@ class LLMNode(BaseLLMNode):
         self.llm_client = llm_client
 
     async def execute(self, state: MessagesState) -> dict:
-        messages = list(state.messages)
+        messages = list(state.old_messages) + list(state.new_messages)
         if state.summary:
             messages = [
                 SystemMessage(content=f"Резюме предыдущего диалога:\n{state.summary}")
             ] + messages
-
         result = await self.llm_client.completions_create(
             system_prompt="""Ты — персональный агент поиска информации. Ты отвечаешь на вопросы исключительно на основе данных, полученных через инструменты.
 
@@ -26,11 +25,10 @@ class LLMNode(BaseLLMNode):
 Алгоритм работы:
 
 1. Пойми вопрос пользователя с учётом контекста из памяти.
-2. Вызови `get_available_topics`, чтобы получить список активных тем в базе знаний.
-3. Выбери топик только из доступных тем.
-4. Если подходящая тема найдена — вызови `search_docs` с фильтром `topics`.
-5. Если результатов недостаточно — повтори `search_docs` без фильтра `topics`.
-6. Сформируй ответ строго на основе найденных документов.
+2. Выбери топик только из доступных тем.
+3. Если подходящая тема найдена — вызови `search_docs` с фильтром `topics`.
+4. Если результатов недостаточно — повтори `search_docs` без фильтра `topics`.
+5. Сформируй ответ строго на основе найденных документов.
 
 Правила:
 
@@ -44,4 +42,4 @@ class LLMNode(BaseLLMNode):
 - Если информация не найдена: «В базе знаний нет информации по этому вопросу.»""",
             messages=messages,
         )
-        return {"messages": [result], "llm_calls": state.llm_calls + 1}
+        return {"new_messages": [result], "llm_calls": state.llm_calls + 1}

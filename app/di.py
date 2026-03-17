@@ -1,10 +1,8 @@
-from collections.abc import AsyncIterator
 from typing import NewType
 
 from dishka import Provider, Scope, make_async_container, provide
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -41,7 +39,7 @@ from app.logic.nodes.ingest.loaders import WebLoaderNode
 from app.logic.nodes.ingest.metadata_filling import MetadataFillingNode
 from app.logic.nodes.ingest.qdrant import QdrantIngestNode
 from app.logic.nodes.llm_node import LLMNode
-from app.logic.nodes.load_summary import LoadSummaryNode
+from app.logic.nodes.load_summary import LoadMemoryNode
 from app.logic.nodes.save_episode import SaveEpisodeNode
 from app.logic.nodes.state import MessagesState
 from app.logic.nodes.tool_node import ToolNode
@@ -78,7 +76,7 @@ class AppProvider(Provider):
         topics_repo: TopicsRepo,
         users_repo: UsersRepo,
         user_threads_repo: UserThreadsRepo,
-        checkpointer: AsyncPostgresSaver,
+        query_traces_repo: QueryTracesRepo,
     ) -> AppBuilder:
         topic_router = TopicRouter(
             create_topic_handler=CreateTopicHandler(topic_repo=topics_repo),
@@ -91,7 +89,7 @@ class AppProvider(Provider):
         )
         thread_service = ThreadService(
             user_threads_repo=user_threads_repo,
-            checkpointer=checkpointer,
+            query_traces_repo=query_traces_repo,
         )
         thread_router = ThreadRouter(
             create_thread_handler=CreateThreadHandler(thread_service=thread_service),
@@ -135,12 +133,6 @@ class DBProvider(Provider):
     @provide(scope=Scope.APP)
     def users_repo(self, engine: AsyncEngine) -> UsersRepo:
         return UsersRepo(engine=engine)
-
-    @provide(scope=Scope.APP)
-    async def postgres_checkpointer(self, settings: Settings) -> AsyncIterator[AsyncPostgresSaver]:
-        async with AsyncPostgresSaver.from_conn_string(settings.db_url) as checkpointer:
-            await checkpointer.setup()
-            yield checkpointer
 
     @provide(scope=Scope.APP)
     def user_threads_repo(self, engine: AsyncEngine) -> UserThreadsRepo:
@@ -234,8 +226,8 @@ class LLMProvider(Provider):
         self,
         thread_summaries_repo: ThreadSummariesRepo,
         query_traces_repo: QueryTracesRepo,
-    ) -> LoadSummaryNode:
-        return LoadSummaryNode(
+    ) -> LoadMemoryNode:
+        return LoadMemoryNode(
             thread_summaries_repo=thread_summaries_repo,
             query_traces_repo=query_traces_repo,
         )
@@ -249,13 +241,12 @@ class LLMProvider(Provider):
         self,
         llm_node: LLMNode,
         evaluator: Evaluator,
-        load_summary_node: LoadSummaryNode,
+        load_memory_node: LoadMemoryNode,
         save_episode_node: SaveEpisodeNode,
         tools: ToolsType,
-        checkpointer: AsyncPostgresSaver,
     ) -> AgentGraph:
         graph = StateGraph(MessagesState)
-        graph.add_node("load_summary", load_summary_node.execute)
+        graph.add_node("load_memory_node", load_memory_node.execute)
         graph.add_node("llm_call", llm_node.execute)
 
         tool_node = ToolNode(tools)
@@ -264,17 +255,17 @@ class LLMProvider(Provider):
         graph.add_node("save_episode", save_episode_node.execute)
 
         def should_continue(state: MessagesState) -> str:
-            last_message = state.messages[-1]
+            last_message = state.new_messages[-1]
             if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                 return "tools"
             return "set_answer"
 
         def set_answer(state: MessagesState) -> dict:
-            last_message = state.messages[-1]
+            last_message = state.new_messages[-1]
             return {"answer": last_message.content}
 
-        graph.add_edge(START, "load_summary")
-        graph.add_edge("load_summary", "llm_call")
+        graph.add_edge(START, "load_memory_node")
+        graph.add_edge("load_memory_node", "llm_call")
         graph.add_conditional_edges("llm_call", should_continue)
         graph.add_edge("tools", "llm_call")
         graph.add_node("set_answer", set_answer)
@@ -282,8 +273,7 @@ class LLMProvider(Provider):
         graph.add_edge("evaluate", "save_episode")
         graph.add_edge("save_episode", END)
 
-        app = graph.compile(checkpointer=checkpointer)
-        return app
+        return graph.compile()
 
 
 class ServicesProvider(Provider):

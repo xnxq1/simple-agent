@@ -17,7 +17,7 @@ class ToolNode:
         self._tools: dict[str, Callable] = {tool.__name__: tool for tool in tools}
 
     async def execute(self, state: MessagesState) -> dict:
-        last_message = state.messages[-1]
+        last_message = state.new_messages[-1]
         tool_calls = getattr(last_message, "tool_calls", [])
 
         # Run all tool calls in parallel, capturing individual exceptions

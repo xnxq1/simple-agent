@@ -1,19 +1,17 @@
 import uuid
 from uuid import UUID
 
-from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-
 from app.domain.threads import UserThread
+from app.infra.db.repos.query_traces import QueryTracesRepo
 from app.infra.db.repos.user_threads import ThreadNotOwnedError, UserThreadsRepo
 
 
 class ThreadService:
     def __init__(
-        self, user_threads_repo: UserThreadsRepo, checkpointer: AsyncPostgresSaver
+        self, user_threads_repo: UserThreadsRepo, query_traces_repo: QueryTracesRepo
     ) -> None:
         self.user_threads_repo = user_threads_repo
-        self.checkpointer = checkpointer
+        self.query_traces_repo = query_traces_repo
 
     async def create_thread(self, user_id: UUID) -> UserThread:
         return await self.user_threads_repo.insert(
@@ -29,18 +27,9 @@ class ThreadService:
                 f"Thread {thread_id} not found for user {user_id}"
             )
 
-        config = {"configurable": {"thread_id": thread_id}}
-        checkpoint_tuple = await self.checkpointer.aget_tuple(config)
-        if checkpoint_tuple is None:
-            return []
-
-        messages = checkpoint_tuple.checkpoint.get("channel_values", {}).get(
-            "messages", []
-        )
+        traces = await self.query_traces_repo.get_by_thread_id(thread_id)
         history = []
-        for msg in messages:
-            if isinstance(msg, HumanMessage):
-                history.append({"role": "human", "content": msg.content})
-            elif isinstance(msg, AIMessage) and msg.content:
-                history.append({"role": "assistant", "content": msg.content})
+        for trace in traces:
+            history.append({"role": "human", "content": trace.question})
+            history.append({"role": "assistant", "content": trace.answer})
         return history

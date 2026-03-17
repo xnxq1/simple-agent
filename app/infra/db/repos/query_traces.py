@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy import asc
 
 from app.domain.query_traces import QueryTrace
 from app.infra.db.models.query_traces import query_traces
@@ -29,6 +30,16 @@ class QueryTracesRepo(EntityRepo):
     async def get_by_summary_id(self, summary_id: UUID) -> list[QueryTrace]:
         query = select(query_traces).where(
             query_traces.c.summary_id == summary_id,
+        )
+        rows = await self.fetch(query)
+        return [QueryTrace(**r) for r in rows]
+
+    @handle_db_errors
+    async def get_by_thread_id(self, thread_id: str) -> list[QueryTrace]:
+        query = (
+            select(query_traces)
+            .where(query_traces.c.thread_id == thread_id)
+            .order_by(asc(query_traces.c.created))
         )
         rows = await self.fetch(query)
         return [QueryTrace(**r) for r in rows]

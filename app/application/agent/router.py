@@ -29,7 +29,7 @@ class AgentRouter:
         config = {"configurable": {"thread_id": payload.thread_id}}
         res = await self.graph_agent.ainvoke(
             MessagesState(
-                messages=[HumanMessage(content=payload.question)],
+                new_messages=[HumanMessage(content=payload.question)],
                 question=payload.question,
             ),
             config=config,
