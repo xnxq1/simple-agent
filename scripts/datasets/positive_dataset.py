@@ -25,8 +25,8 @@ class QuestionsResult(BaseModel):
 
 
 async def get_random_documents(container, limit: int = 25) -> list[str]:
-    qdrant_repo = container.get(QdrantRepo)
-    settings = container.get(Settings)
+    qdrant_repo = await container.get(QdrantRepo)
+    settings = await container.get(Settings)
     records, _ = await qdrant_repo.client.scroll(
         collection_name=settings.qdrant_collection,
         limit=limit * 5,
@@ -40,7 +40,7 @@ async def get_random_documents(container, limit: int = 25) -> list[str]:
 async def generate_positive_test_questions(
     container, document: str, num_questions: int = 2
 ) -> QuestionsResult:
-    llm_client = container.get(LLMWithoutToolsType)
+    llm_client = await container.get(LLMWithoutToolsType)
     prompt = f"""
 На основе следующего документа сгенерируй {num_questions} реалистичных вопросов,
 на которые МОЖНО ответить, используя только этот документ.
@@ -80,27 +80,28 @@ async def generate_positive_test_questions(
 
 
 async def main():
-    documents = await get_random_documents(container, limit=25)
-    dataset = []
-    for i, doc in enumerate(documents):
-        try:
-            result = await generate_positive_test_questions(container, doc)
-            dataset.append(
-                {
-                    "document": doc,
-                    "questions": [q.model_dump() for q in result.questions],
-                }
-            )
-            print(
-                f"[{i + 1}/{len(documents)}] generated {len(result.questions)} questions"
-            )
-        except Exception as e:
-            print(f"[{i + 1}/{len(documents)}] failed: {e}")
+    async with container:
+        documents = await get_random_documents(container, limit=25)
+        dataset = []
+        for i, doc in enumerate(documents):
+            try:
+                result = await generate_positive_test_questions(container, doc)
+                dataset.append(
+                    {
+                        "document": doc,
+                        "questions": [q.model_dump() for q in result.questions],
+                    }
+                )
+                print(
+                    f"[{i + 1}/{len(documents)}] generated {len(result.questions)} questions"
+                )
+            except Exception as e:
+                print(f"[{i + 1}/{len(documents)}] failed: {e}")
 
-    output_path = "scripts/datasets/json/positive_dataset.json"
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(dataset, f, ensure_ascii=False, indent=2)
-    print(f"Saved {len(dataset)} entries to {output_path}")
+        output_path = "scripts/datasets/json/positive_dataset.json"
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(dataset, f, ensure_ascii=False, indent=2)
+        print(f"Saved {len(dataset)} entries to {output_path}")
 
 
 if __name__ == "__main__":

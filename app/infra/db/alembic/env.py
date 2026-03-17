@@ -4,7 +4,6 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import app.infra.db.models  # noqa: F401 — registers all tables with metadata
-from app.di import container
 from app.infra.config import Settings
 from app.infra.db.utils import metadata
 
@@ -12,7 +11,7 @@ from app.infra.db.utils import metadata
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option("sqlalchemy.url", container.get(Settings).db_url)
+config.set_main_option("sqlalchemy.url", Settings().db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

@@ -1,6 +1,7 @@
+from collections.abc import AsyncIterator
 from typing import NewType
 
-from dishka import Provider, Scope, make_container, provide
+from dishka import Provider, Scope, make_async_container, provide
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -136,8 +137,10 @@ class DBProvider(Provider):
         return UsersRepo(engine=engine)
 
     @provide(scope=Scope.APP)
-    def postgres_checkpointer(self, settings: Settings) -> AsyncPostgresSaver:
-        return AsyncPostgresSaver.from_conn_string(settings.db_url)
+    async def postgres_checkpointer(self, settings: Settings) -> AsyncIterator[AsyncPostgresSaver]:
+        async with AsyncPostgresSaver.from_conn_string(settings.db_url) as checkpointer:
+            await checkpointer.setup()
+            yield checkpointer
 
     @provide(scope=Scope.APP)
     def user_threads_repo(self, engine: AsyncEngine) -> UserThreadsRepo:
@@ -397,4 +400,4 @@ providers = (
     IngestProvider(),
     ToolsProvider(),
 )
-container = make_container(*providers)
+container = make_async_container(*providers)
