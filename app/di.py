@@ -18,17 +18,19 @@ from app.application.threads.router import ThreadRouter
 from app.application.topics.router import TopicRouter
 from app.application.users.router import UserRouter
 from app.infra.config import Settings
+from app.infra.db.repos.query_traces import QueryTracesRepo
+from app.infra.db.repos.thread_summaries import ThreadSummariesRepo
 from app.infra.db.repos.topics import TopicsRepo
+from app.infra.db.repos.user_threads import UserThreadsRepo
 from app.infra.db.repos.users import UsersRepo
 from app.infra.llm.client import LLMClient
 from app.infra.qdrant.repos.repos import QdrantRepo
+from app.logic.handlers.thread import CreateThreadHandler, GetThreadHistoryHandler
 from app.logic.handlers.topic import (
     CreateTopicHandler,
     GetTopicHandler,
     UpdateTopicHandler,
 )
-from app.logic.handlers.thread import CreateThreadHandler, GetThreadHistoryHandler
-from app.logic.services.thread import ThreadService
 from app.logic.handlers.user import CreateUserHandler, GetUsersHandler
 from app.logic.nodes.evaluator import Evaluator
 from app.logic.nodes.ingest.base import IngestState
@@ -37,10 +39,8 @@ from app.logic.nodes.ingest.embeddings import EmbeddingNode
 from app.logic.nodes.ingest.loaders import WebLoaderNode
 from app.logic.nodes.ingest.metadata_filling import MetadataFillingNode
 from app.logic.nodes.ingest.qdrant import QdrantIngestNode
-from app.infra.db.repos.query_traces import QueryTracesRepo
-from app.infra.db.repos.thread_summaries import ThreadSummariesRepo
-from app.logic.nodes.load_summary import LoadSummaryNode
 from app.logic.nodes.llm_node import LLMNode
+from app.logic.nodes.load_summary import LoadSummaryNode
 from app.logic.nodes.save_episode import SaveEpisodeNode
 from app.logic.nodes.state import MessagesState
 from app.logic.nodes.tool_node import ToolNode
@@ -48,12 +48,12 @@ from app.logic.services.chunking import ChunkingService
 from app.logic.services.embedding import EmbeddingService
 from app.logic.services.evaluation import EvaluationService
 from app.logic.services.metadata_filling import MetadataFillingService
+from app.logic.services.thread import ThreadService
 from app.logic.services.vector_store import VectorStoreService
 from app.logic.services.web_loader import WebLoaderService
 from app.logic.tools.db import DBTools
 from app.logic.tools.rag import RAGTools
 from app.main import AppBuilder
-from app.infra.db.repos.user_threads import UserThreadsRepo
 
 AgentGraph = NewType("AgentGraph", CompiledStateGraph)
 IngestGraph = NewType("IngestGraph", CompiledStateGraph)
@@ -94,9 +94,13 @@ class AppProvider(Provider):
         )
         thread_router = ThreadRouter(
             create_thread_handler=CreateThreadHandler(thread_service=thread_service),
-            get_thread_history_handler=GetThreadHistoryHandler(thread_service=thread_service),
+            get_thread_history_handler=GetThreadHistoryHandler(
+                thread_service=thread_service
+            ),
         )
-        agent_router = AgentRouter(graph_agent=agent_graph, user_threads_repo=user_threads_repo)
+        agent_router = AgentRouter(
+            graph_agent=agent_graph, user_threads_repo=user_threads_repo
+        )
         ingest_router = IngestRouter(ingest_graph=ingest_graph)
         return AppBuilder(
             routers=[

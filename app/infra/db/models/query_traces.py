@@ -16,5 +16,7 @@ query_traces = Table(
     Column("faithfulness_score", Float, nullable=True),
     Column("answer_relevance_score", Float, nullable=True),
     Column("summary_id", UUID, nullable=True),
-    Column("created", TIMESTAMP(timezone=True), server_default=now_at_utc, nullable=False),
+    Column(
+        "created", TIMESTAMP(timezone=True), server_default=now_at_utc, nullable=False
+    ),
 )

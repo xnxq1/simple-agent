@@ -1,11 +1,9 @@
-from uuid import UUID
-
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
-from app.infra.db.repos.user_threads import ThreadNotOwnedError, UserThreadsRepo
+from app.infra.db.repos.user_threads import UserThreadsRepo
 from app.logic.nodes.state import MessagesState
 
 
@@ -16,7 +14,9 @@ class AgentRequest(BaseModel):
 
 
 class AgentRouter:
-    def __init__(self, graph_agent: CompiledStateGraph, user_threads_repo: UserThreadsRepo):
+    def __init__(
+        self, graph_agent: CompiledStateGraph, user_threads_repo: UserThreadsRepo
+    ):
         self.graph_agent = graph_agent
         self.user_threads_repo = user_threads_repo
         self.router = APIRouter(prefix="/agent", tags=["agent"])

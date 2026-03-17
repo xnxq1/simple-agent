@@ -15,5 +15,7 @@ thread_summaries = Table(
     Column("avg_context_score", Float, nullable=True),
     Column("avg_faithfulness_score", Float, nullable=True),
     Column("avg_answer_relevance_score", Float, nullable=True),
-    Column("created", TIMESTAMP(timezone=True), server_default=now_at_utc, nullable=False),
+    Column(
+        "created", TIMESTAMP(timezone=True), server_default=now_at_utc, nullable=False
+    ),
 )

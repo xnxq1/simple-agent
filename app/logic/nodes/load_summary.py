@@ -20,12 +20,12 @@ class LoadSummaryNode:
         if not thread_id:
             return {}
 
-        summary_row = await self.thread_summaries_repo.get_latest(thread_id)
-        if not summary_row:
+        summary = await self.thread_summaries_repo.get_latest(thread_id)
+        if not summary:
             return {}
 
-        covered_traces = await self.query_traces_repo.get_by_summary_id(summary_row["id"])
-        covered_message_ids = {trace["message_id"] for trace in covered_traces}
+        covered_traces = await self.query_traces_repo.get_by_summary_id(summary.id)
+        covered_message_ids = {t.message_id for t in covered_traces}
 
         remove_messages = [
             RemoveMessage(id=mid)
@@ -34,8 +34,8 @@ class LoadSummaryNode:
         ]
 
         result: dict = {
-            "summary": summary_row["summary"],
-            "summary_id": str(summary_row["id"]),
+            "summary": summary.summary,
+            "summary_id": str(summary.id),
         }
         if remove_messages:
             result["messages"] = remove_messages

@@ -12,7 +12,9 @@ class LLMNode(BaseLLMNode):
     async def execute(self, state: MessagesState) -> dict:
         messages = list(state.messages)
         if state.summary:
-            messages = [SystemMessage(content=f"Резюме предыдущего диалога:\n{state.summary}")] + messages
+            messages = [
+                SystemMessage(content=f"Резюме предыдущего диалога:\n{state.summary}")
+            ] + messages
 
         result = await self.llm_client.completions_create(
             system_prompt="""

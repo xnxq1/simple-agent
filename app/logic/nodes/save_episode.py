@@ -28,14 +28,22 @@ class SaveEpisodeNode:
         message_id = human_msgs[-1].id if human_msgs else ""
 
         await self.query_traces_repo.insert(
-            thread_id=thread_id,
-            message_id=message_id,
-            question=state.question,
-            answer=state.answer or "",
-            tools_used=list(set(tools_used)),
-            topics=list(set(topics)),
-            context_score=state.context_relevance_result.context_score if state.context_relevance_result else None,
-            faithfulness_score=state.groundness_result.faithfulness_score if state.groundness_result else None,
-            answer_relevance_score=state.answer_relevance_result.score if state.answer_relevance_result else None,
+            payload={
+                "thread_id": thread_id,
+                "message_id": message_id,
+                "question": state.question,
+                "answer": state.answer or "",
+                "tools_used": list(set(tools_used)),
+                "topics": list(set(topics)),
+                "context_score": state.context_relevance_result.context_score
+                if state.context_relevance_result
+                else None,
+                "faithfulness_score": state.groundness_result.faithfulness_score
+                if state.groundness_result
+                else None,
+                "answer_relevance_score": state.answer_relevance_result.score
+                if state.answer_relevance_result
+                else None,
+            }
         )
         return {}

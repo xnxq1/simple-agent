@@ -1,4 +1,4 @@
-from sqlalchemy import TIMESTAMP, Column, ForeignKey, Table, Text, UUID, text
+from sqlalchemy import TIMESTAMP, UUID, Column, ForeignKey, Table, Text, text
 
 from app.infra.db.utils import metadata
 

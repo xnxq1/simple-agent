@@ -1,4 +1,5 @@
 import dataclasses
+
 from app.domain.topics import BaseEntity
 
 

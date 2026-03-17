@@ -18,4 +18,6 @@ class GetThreadHistoryHandler(BaseHandler):
         self.thread_service = thread_service
 
     async def execute(self, thread_id: str, user_id: UUID) -> list[dict]:
-        return await self.thread_service.get_history(thread_id=thread_id, user_id=user_id)
+        return await self.thread_service.get_history(
+            thread_id=thread_id, user_id=user_id
+        )

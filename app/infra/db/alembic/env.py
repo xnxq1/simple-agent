@@ -3,10 +3,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import app.infra.db.models  # noqa: F401 — registers all tables with metadata
 from app.di import container
 from app.infra.config import Settings
 from app.infra.db.utils import metadata
-import app.infra.db.models  # noqa: F401 — registers all tables with metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

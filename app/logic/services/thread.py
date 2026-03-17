@@ -9,7 +9,9 @@ from app.infra.db.repos.user_threads import ThreadNotOwnedError, UserThreadsRepo
 
 
 class ThreadService:
-    def __init__(self, user_threads_repo: UserThreadsRepo, checkpointer: AsyncPostgresSaver) -> None:
+    def __init__(
+        self, user_threads_repo: UserThreadsRepo, checkpointer: AsyncPostgresSaver
+    ) -> None:
         self.user_threads_repo = user_threads_repo
         self.checkpointer = checkpointer
 
@@ -23,14 +25,18 @@ class ThreadService:
             thread_id=thread_id, user_id=user_id
         )
         if thread is None:
-            raise ThreadNotOwnedError(f"Thread {thread_id} not found for user {user_id}")
+            raise ThreadNotOwnedError(
+                f"Thread {thread_id} not found for user {user_id}"
+            )
 
         config = {"configurable": {"thread_id": thread_id}}
         checkpoint_tuple = await self.checkpointer.aget_tuple(config)
         if checkpoint_tuple is None:
             return []
 
-        messages = checkpoint_tuple.checkpoint.get("channel_values", {}).get("messages", [])
+        messages = checkpoint_tuple.checkpoint.get("channel_values", {}).get(
+            "messages", []
+        )
         history = []
         for msg in messages:
             if isinstance(msg, HumanMessage):
