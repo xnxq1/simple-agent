@@ -46,7 +46,7 @@ class ToolNode:
                 )
             )
 
-        return {"messages": tool_messages, "retrieve_context": new_context}
+        return {"new_messages": tool_messages, "retrieve_context": new_context}
 
     async def _call_tool(self, tool_call: dict):
         name = tool_call["name"]
