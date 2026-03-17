@@ -37,7 +37,11 @@ from app.logic.nodes.ingest.embeddings import EmbeddingNode
 from app.logic.nodes.ingest.loaders import WebLoaderNode
 from app.logic.nodes.ingest.metadata_filling import MetadataFillingNode
 from app.logic.nodes.ingest.qdrant import QdrantIngestNode
+from app.infra.db.repos.query_traces import QueryTracesRepo
+from app.infra.db.repos.thread_summaries import ThreadSummariesRepo
+from app.logic.nodes.load_summary import LoadSummaryNode
 from app.logic.nodes.llm_node import LLMNode
+from app.logic.nodes.save_episode import SaveEpisodeNode
 from app.logic.nodes.state import MessagesState
 from app.logic.nodes.tool_node import ToolNode
 from app.logic.services.chunking import ChunkingService
@@ -135,6 +139,14 @@ class DBProvider(Provider):
     def user_threads_repo(self, engine: AsyncEngine) -> UserThreadsRepo:
         return UserThreadsRepo(engine=engine)
 
+    @provide(scope=Scope.APP)
+    def query_traces_repo(self, engine: AsyncEngine) -> QueryTracesRepo:
+        return QueryTracesRepo(engine=engine)
+
+    @provide(scope=Scope.APP)
+    def thread_summaries_repo(self, engine: AsyncEngine) -> ThreadSummariesRepo:
+        return ThreadSummariesRepo(engine=engine)
+
 
 class EmbeddingsProvider(Provider):
     @provide(scope=Scope.APP)
@@ -211,19 +223,38 @@ class LLMProvider(Provider):
         return Evaluator(service)
 
     @provide(scope=Scope.APP)
-    async def graph_agent(
+    def load_summary_node(
+        self,
+        thread_summaries_repo: ThreadSummariesRepo,
+        query_traces_repo: QueryTracesRepo,
+    ) -> LoadSummaryNode:
+        return LoadSummaryNode(
+            thread_summaries_repo=thread_summaries_repo,
+            query_traces_repo=query_traces_repo,
+        )
+
+    @provide(scope=Scope.APP)
+    def save_episode_node(self, query_traces_repo: QueryTracesRepo) -> SaveEpisodeNode:
+        return SaveEpisodeNode(query_traces_repo=query_traces_repo)
+
+    @provide(scope=Scope.APP)
+    def graph_agent(
         self,
         llm_node: LLMNode,
         evaluator: Evaluator,
+        load_summary_node: LoadSummaryNode,
+        save_episode_node: SaveEpisodeNode,
         tools: ToolsType,
         checkpointer: AsyncPostgresSaver,
     ) -> AgentGraph:
         graph = StateGraph(MessagesState)
+        graph.add_node("load_summary", load_summary_node.execute)
         graph.add_node("llm_call", llm_node.execute)
 
         tool_node = ToolNode(tools)
         graph.add_node("tools", tool_node.execute)
         graph.add_node("evaluate", evaluator.execute)
+        graph.add_node("save_episode", save_episode_node.execute)
 
         def should_continue(state: MessagesState) -> str:
             last_message = state.messages[-1]
@@ -235,12 +266,14 @@ class LLMProvider(Provider):
             last_message = state.messages[-1]
             return {"answer": last_message.content}
 
-        graph.add_edge(START, "llm_call")
+        graph.add_edge(START, "load_summary")
+        graph.add_edge("load_summary", "llm_call")
         graph.add_conditional_edges("llm_call", should_continue)
         graph.add_edge("tools", "llm_call")
         graph.add_node("set_answer", set_answer)
         graph.add_edge("set_answer", "evaluate")
-        graph.add_edge("evaluate", END)
+        graph.add_edge("evaluate", "save_episode")
+        graph.add_edge("save_episode", END)
 
         app = graph.compile(checkpointer=checkpointer)
         return app

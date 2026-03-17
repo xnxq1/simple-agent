@@ -26,7 +26,7 @@ class AgentRouter:
         self.router.post("/query")(self.agent_query)
 
     async def agent_query(self, payload: AgentRequest):
-        config = {"configurable": {"thread_id": AgentRequest.thread_id}}
+        config = {"configurable": {"thread_id": payload.thread_id}}
         res = await self.graph_agent.ainvoke(
             MessagesState(
                 messages=[HumanMessage(content=payload.question)],

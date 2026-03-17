@@ -20,3 +20,5 @@ class MessagesState(BaseModel):
     context_relevance_result: ContextRelevanceResult | None = None
     groundness_result: GroundnessResult | None = None
     answer_relevance_result: AnswerRelevanceResult | None = None
+    summary: str | None = None
+    summary_id: str | None = None
